@@ -3,11 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WOOK'S 회의록 v2.5</title>
+<title>WOOK'S 회의록 v2.5 Professional</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600&family=Noto+Sans+KR:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
-/* 기존 스타일 유지 및 신규 스타일 추가 */
 :root {
   --paper:#F7F5F0;--paper-2:#EFECE5;--paper-3:#E8E4DA;
   --ink:#2C2C2A;--ink-2:#5A5753;--ink-3:#8A8780;
@@ -24,193 +23,252 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 .header-logo{font-family:var(--serif);font-size:15px;font-weight:600;color:var(--paper);letter-spacing:2px;}
 .header-div{width:1px;height:18px;background:rgba(255,255,255,0.2);}
 .header-sub{font-size:12px;color:rgba(255,255,255,0.4);font-weight:300;letter-spacing:0.5px;}
-.header-badge{margin-left:auto;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.25);}
-.wrap{max-width:860px;margin:0 auto;padding:3rem 2rem 4rem;display:flex;flex-direction:column;}
+.wrap{max-width:860px;margin:0 auto;padding:3rem 2rem 4rem;}
 .sec{border-bottom:1px solid var(--line);padding:2.5rem 0;}
 .sec:first-child{padding-top:0;}
-.sec-label{font-size:10px;letter-spacing:2.5px;text-transform:uppercase;color:var(--ink-3);font-weight:400;margin-bottom:1.5rem;display:flex;align-items:center;gap:10px;}
+.sec-label{font-size:10px;letter-spacing:2.5px;text-transform:uppercase;color:var(--ink-3);margin-bottom:1.5rem;display:flex;align-items:center;gap:10px;}
 .sec-label::after{content:'';flex:1;height:1px;background:var(--line);}
-.sec-num{font-family:var(--mono);font-size:11px;color:var(--line-2);margin-right:4px;}
-.upload-zone{border:1px dashed var(--line-2);background:white;padding:2rem 1.5rem;text-align:center;cursor:pointer;transition:all 0.2s;position:relative;}
-.upload-zone:hover,.upload-zone.drag-over{border-color:var(--ink-2);background:var(--paper-2);}
-.upload-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
-.upload-arrow{font-size:24px;color:var(--line-2);margin-bottom:8px;}
-.upload-title{font-size:13px;color:var(--ink-2);margin-bottom:4px;}
-.upload-sub{font-size:11px;color:var(--ink-3);letter-spacing:0.5px;}
-.file-tags{display:flex;gap:6px;justify-content:center;margin-top:10px;}
-.file-tag{font-size:10px;padding:2px 8px;border:1px solid var(--line);color:var(--ink-3);font-family:var(--mono);}
-.divider-or{display:flex;align-items:center;gap:12px;color:var(--ink-3);font-size:11px;letter-spacing:1px;margin:1.25rem 0;}
-.divider-or::before,.divider-or::after{content:'';flex:1;height:1px;background:var(--line);}
-.file-ok{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--moss-bg);border-left:3px solid var(--moss);margin-top:10px;}
-.file-ok-name{font-size:13px;color:var(--moss);font-weight:500;}
-.file-ok-size{font-size:11px;color:#7A9E74;}
-.file-remove{margin-left:auto;background:none;border:none;cursor:pointer;color:var(--moss);font-size:18px;line-height:1;}
-textarea{width:100%;min-height:130px;border:1px solid var(--line);background:white;padding:1rem;font-family:var(--sans);font-size:13px;color:var(--ink);resize:vertical;outline:none;line-height:1.7;transition:border-color 0.2s;border-radius:0;}
-textarea:focus{border-color:var(--ink-2);}
-textarea::placeholder{color:var(--ink-3);}
-.char-count{text-align:right;font-size:11px;color:var(--ink-3);font-family:var(--mono);margin-top:4px;}
+.upload-zone{border:1px dashed var(--line-2);background:white;padding:2rem;text-align:center;cursor:pointer;position:relative;}
+textarea{width:100%;min-height:150px;border:1px solid var(--line);padding:1rem;font-size:13px;resize:vertical;outline:none;}
 .meta-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;}
-.field label{display:block;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-3);margin-bottom:5px;font-weight:400;}
-.field input,.field select{width:100%;padding:8px 10px;border:1px solid var(--line);background:white;font-family:var(--sans);font-size:13px;color:var(--ink);outline:none;transition:border-color 0.2s;border-radius:0;-webkit-appearance:none;}
-.field input:focus,.field select:focus{border-color:var(--ink-2);}
+.field label{display:block;font-size:10px;color:var(--ink-3);margin-bottom:5px;text-transform:uppercase;}
+.field input, .field select{width:100%;padding:8px;border:1px solid var(--line);outline:none;}
 .options-grid{display:flex;flex-wrap:wrap;gap:8px;}
-.opt-toggle{display:flex;align-items:center;gap:7px;padding:6px 12px;border:1px solid var(--line);cursor:pointer;background:white;transition:all 0.15s;user-select:none;font-size:12px;color:var(--ink-2);}
-.opt-toggle:hover{border-color:var(--ink-2);}
-.opt-toggle.active{background:var(--ink);border-color:var(--ink);color:var(--paper);}
-.opt-toggle input{display:none;}
-.opt-sq{width:12px;height:12px;border:1px solid currentColor;flex-shrink:0;}
+.opt-toggle{padding:6px 12px;border:1px solid var(--line);cursor:pointer;background:white;font-size:12px;}
+.opt-toggle.active{background:var(--ink);color:var(--paper);border-color:var(--ink);}
 .api-section{background:white;border:1px solid var(--line);padding:1.5rem;}
-.api-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
-.api-row input{flex:1;padding:8px 10px;border:1px solid var(--line);background:var(--paper);font-family:var(--mono);font-size:12px;color:var(--ink);outline:none;transition:border-color 0.2s;border-radius:0;}
-.api-row input:focus{border-color:var(--ink-2);background:white;}
-.btn-sm{padding:8px 14px;border:1px solid var(--line);background:white;font-family:var(--sans);font-size:12px;color:var(--ink-2);cursor:pointer;transition:all 0.15s;white-space:nowrap;border-radius:0;}
-.btn-sm:hover{border-color:var(--ink);color:var(--ink);background:var(--paper-2);}
-.btn-sm:disabled{opacity:0.4;cursor:not-allowed;}
-.api-meta{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--ink-3);margin-top:6px;}
-.api-meta a{color:var(--slate);text-decoration:none;}
-.api-meta a:hover{text-decoration:underline;}
-#keyStatus{font-size:11px;font-weight:500;}
-.model-row{display:flex;align-items:center;gap:10px;padding-top:12px;border-top:1px solid var(--line);margin-top:12px;}
-.model-row label{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-3);white-space:nowrap;font-weight:400;}
-.model-row select{flex:1;padding:7px 10px;border:1px solid var(--line);background:var(--paper);font-family:var(--sans);font-size:12px;color:var(--ink);outline:none;border-radius:0;-webkit-appearance:none;cursor:pointer;}
-.model-row select:focus{border-color:var(--ink-2);}
-#keyDiag{display:none;margin-top:8px;padding:7px 10px;background:var(--paper-2);border-left:2px solid var(--line-2);font-size:11px;font-family:var(--mono);color:var(--ink-2);line-height:1.5;}
-.btn-generate{width:100%;padding:16px;background:var(--ink);color:var(--paper);border:none;font-family:var(--serif);font-size:15px;font-weight:500;cursor:pointer;letter-spacing:1px;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:10px;margin-top:2rem;}
-.btn-generate:hover:not(:disabled){background:#3D3D3B;}
-.btn-generate:disabled{opacity:0.4;cursor:not-allowed;}
-.progress-wrap{display:none;margin-top:1.5rem;padding:1.25rem 1.5rem;background:white;border:1px solid var(--line);}
-.progress-track{height:2px;background:var(--paper-3);margin-bottom:12px;}
-.progress-fill{height:2px;background:var(--ink);transition:width 0.5s ease;}
-.prog-steps{display:flex;gap:8px;flex-wrap:wrap;}
-.ps{font-size:10px;letter-spacing:0.8px;padding:3px 8px;text-transform:uppercase;font-weight:400;}
-.ps.done{color:var(--moss);border:1px solid var(--moss-bg);background:var(--moss-bg);}
-.ps.active{color:var(--ink);border:1px solid var(--ink);}
-.ps.pending{color:var(--ink-3);border:1px solid var(--line);}
-.error-box{padding:12px 16px;background:var(--red-bg);border-left:3px solid var(--red);font-size:13px;color:var(--red);margin-top:1rem;display:none;white-space:pre-line;line-height:1.7;}
-.spinner{width:16px;height:16px;border:1.5px solid rgba(247,245,240,0.3);border-top-color:var(--paper);border-radius:50%;animation:spin 0.7s linear infinite;}
-@keyframes spin{to{transform:rotate(360deg);}}
-/* ── RESULT ── */
+.btn-generate{width:100%;padding:16px;background:var(--ink);color:var(--paper);border:none;font-family:var(--serif);font-size:16px;cursor:pointer;margin-top:2rem;}
+.progress-wrap{display:none;margin-top:1.5rem;height:2px;background:var(--line);position:relative;}
+.progress-fill{height:100%;background:var(--ink);width:0%;transition:width 0.3s;}
+
+/* RESULT STYLES */
 .result-wrap{display:none;margin-top:3rem;}
-.result-wrap.show{display:block;}
-.doc{background:white;border:1px solid var(--line);}
-.doc-head{padding:2.5rem 3rem 2rem;border-bottom:2px solid var(--ink);}
-.doc-classification{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--ink-3);margin-bottom:1rem;font-weight:400;}
-.doc-title{font-family:var(--serif);font-size:22px;font-weight:600;color:var(--ink);letter-spacing:-0.3px;margin-bottom:1.5rem;}
+.doc{background:white;border:1px solid var(--line);box-shadow:0 10px 30px rgba(0,0,0,0.05);}
+.doc-head{padding:3rem;border-bottom:2px solid var(--ink);}
+.doc-title{font-family:var(--serif);font-size:24px;margin-bottom:1rem;}
 .doc-meta-table{width:100%;border-collapse:collapse;font-size:12px;}
-.doc-meta-table td{padding:5px 12px 5px 0;vertical-align:top;}
-.doc-meta-table td:first-child{color:var(--ink-3);font-size:10px;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;padding-right:16px;width:80px;}
-.doc-meta-table td:nth-child(2){color:var(--ink);border-bottom:1px solid var(--line);padding-bottom:5px;}
-.attendee-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;}
-.att-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border:1px solid var(--line);font-size:11px;color:var(--ink-2);}
-.att-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.doc-meta-table td{padding:8px 0;border-bottom:1px solid var(--paper-2);}
+.doc-meta-table td:first-child{width:100px;color:var(--ink-3);text-transform:uppercase;letter-spacing:1px;}
 .doc-sec{padding:2rem 3rem;border-bottom:1px solid var(--line);}
-.doc-sec:last-child{border-bottom:none;}
-.doc-sec-title{font-size:10px;letter-spacing:2.5px;text-transform:uppercase;color:var(--ink-3);font-weight:400;margin-bottom:1.25rem;display:flex;align-items:center;gap:10px;}
-.doc-sec-title span{font-family:var(--mono);font-size:10px;color:var(--line-2);}
-.doc-sec-title::after{content:'';flex:1;height:1px;background:var(--line);}
-.summary-text{font-size:14px;line-height:1.9;color:var(--ink);padding-left:1rem;border-left:3px solid var(--ink);}
-.insight-list{display:flex;flex-direction:column;gap:6px;margin-top:1rem;}
-.insight-item{display:flex;gap:10px;padding:8px 12px;background:var(--paper-2);font-size:12px;color:var(--ink-2);line-height:1.6;}
-.insight-item::before{content:'\2192';color:var(--ink-3);flex-shrink:0;}
-.agenda-list{display:flex;flex-direction:column;}
-.agenda-item{display:flex;border-bottom:1px solid var(--line);padding:10px 0;}
-.agenda-item:last-child{border-bottom:none;}
-.agenda-num{font-family:var(--mono);font-size:11px;color:var(--ink-3);width:28px;flex-shrink:0;margin-top:1px;}
-.agenda-content h4{font-size:13px;font-weight:500;color:var(--ink);margin-bottom:3px;}
-.agenda-content p{font-size:12px;color:var(--ink-2);line-height:1.6;}
-.agenda-dur{margin-left:auto;font-size:11px;color:var(--ink-3);font-family:var(--mono);flex-shrink:0;padding-left:12px;}
-.decision-list{display:flex;flex-direction:column;gap:6px;}
-.decision-item{display:flex;gap:10px;align-items:flex-start;padding:10px 14px;background:var(--sand-bg);border-left:3px solid var(--sand);font-size:13px;color:var(--ink);line-height:1.6;}
-.dec-icon{color:var(--sand);font-size:11px;margin-top:2px;flex-shrink:0;font-family:var(--mono);}
-.todo-table{width:100%;border-collapse:collapse;}
-.todo-table thead tr{border-bottom:1px solid var(--ink);}
-.todo-table th{text-align:left;padding:6px 10px 8px;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-3);font-weight:400;}
-.todo-table td{padding:10px 10px;font-size:12px;color:var(--ink);border-bottom:1px solid var(--line);vertical-align:top;line-height:1.5;}
-.todo-table tr:last-child td{border-bottom:none;}
-.todo-table tr:hover td{background:var(--paper);}
-.todo-check{width:14px;height:14px;border:1px solid var(--line-2);display:inline-block;vertical-align:middle;}
-.owner-tag{display:inline-block;padding:2px 8px;background:var(--slate-bg);color:var(--slate);font-size:11px;border:1px solid #C8D8E0;}
-.pri{display:inline-block;padding:1px 7px;font-size:10px;letter-spacing:0.5px;text-transform:uppercase;}
-.pri-high{background:var(--red-bg);color:var(--red);border:1px solid #E8C4BC;}
-.pri-med{background:var(--sand-bg);color:var(--sand);border:1px solid #DDD0BB;}
-.pri-low{background:var(--moss-bg);color:var(--moss);border:1px solid #C0D4BC;}
-.risk-list{display:flex;flex-direction:column;gap:6px;}
-.risk-item{display:flex;gap:10px;align-items:flex-start;padding:9px 12px;background:var(--red-bg);border-left:3px solid var(--red);font-size:12px;color:var(--ink);line-height:1.6;}
-.risk-mark{color:var(--red);font-family:var(--mono);font-size:11px;margin-top:1px;flex-shrink:0;}
-.plan-list{display:flex;flex-direction:column;}
-.plan-item{display:flex;gap:12px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px;color:var(--ink);line-height:1.6;}
-.plan-item:last-child{border-bottom:none;}
-.plan-num{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:2px;flex-shrink:0;}
-.meter-list{display:flex;flex-direction:column;gap:10px;}
-.meter-row{display:flex;align-items:center;gap:12px;}
-.meter-label{font-size:11px;color:var(--ink-2);width:70px;flex-shrink:0;}
-.meter-track{flex:1;height:3px;background:var(--paper-3);}
-.meter-fill{height:3px;background:var(--ink);transition:width 0.8s ease;}
-.meter-val{font-family:var(--mono);font-size:11px;color:var(--ink-3);width:32px;text-align:right;}
-.sentiment-badge{display:inline-block;padding:3px 12px;border:1px solid var(--ink-2);font-size:11px;color:var(--ink-2);letter-spacing:1px;margin-bottom:12px;}
-.sentiment-comment{font-size:12px;color:var(--ink-3);font-style:italic;margin-top:10px;padding-left:12px;border-left:2px solid var(--line);}
-.doc-foot{padding:1rem 3rem;background:var(--paper-2);border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
-.doc-foot-left{font-size:11px;color:var(--ink-3);flex-shrink:1;min-width:0;}
-.doc-foot-right{display:flex;gap:6px;flex-shrink:0;align-items:center;flex-wrap:nowrap;}
-.btn-doc{padding:7px 14px;border:1px solid var(--line-2);background:white;font-family:var(--sans);font-size:12px;color:var(--ink-2);cursor:pointer;transition:all 0.15s;letter-spacing:0;border-radius:0;white-space:nowrap;}
-.btn-doc:hover{border-color:var(--ink);color:var(--ink);}
-.btn-doc.primary{background:var(--ink);color:var(--paper);border-color:var(--ink);}
-.btn-doc.primary:hover{background:#3D3D3B;}
-.btn-doc:disabled{opacity:0.4;cursor:not-allowed;}
-@media print{.header,.wrap>.sec,.btn-generate,.progress-wrap,.doc-foot,.error-box{display:none!important;}.result-wrap{margin-top:0;}.doc{border:none;}body{background:white;}}
-@media(max-width:640px){.wrap{padding:2rem 1rem 3rem;}.doc-head,.doc-sec{padding:1.5rem 1.25rem;}.doc-foot{flex-direction:column;gap:10px;}.meta-grid{grid-template-columns:1fr 1fr;}}
-.fadeIn{animation:fadeIn 0.5s ease forwards;}
-@keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.doc-sec-title{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--ink-3);margin-bottom:1.5rem;display:flex;align-items:center;}
+.doc-sec-title span{font-family:var(--mono);margin-right:10px;}
+.doc-sec-title::after{content:'';flex:1;height:1px;background:var(--line);margin-left:10px;}
+.summary-text{font-size:14px;line-height:1.8;padding-left:1rem;border-left:3px solid var(--ink);}
+.decision-box{background:var(--sand-bg);padding:1.5rem;border-left:4px solid var(--sand);margin-bottom:1rem;}
+.rationale-tag{display:inline-block;font-family:var(--mono);font-size:10px;background:var(--paper-3);padding:2px 6px;margin-bottom:8px;color:var(--sand);}
+.issue-item{background:var(--paper-2);padding:1rem;margin-bottom:0.5rem;font-size:13px;}
+.todo-table{width:100%;border-collapse:collapse;font-size:12px;}
+.todo-table th{text-align:left;padding:8px;border-bottom:1px solid var(--ink);color:var(--ink-3);}
+.todo-table td{padding:10px 8px;border-bottom:1px solid var(--line);}
+.owner-tag{background:var(--slate-bg);color:var(--slate);padding:2px 8px;font-size:11px;}
+.doc-foot{padding:1.5rem 3rem;background:var(--paper-2);display:flex;justify-content:space-between;font-size:11px;}
+.btn-doc{padding:8px 16px;border:1px solid var(--line-2);background:white;cursor:pointer;font-size:12px;}
+.btn-doc.primary{background:var(--ink);color:var(--paper);border:none;}
+@media print{.header, .sec, .btn-generate{display:none!important;}.doc{border:none;}}
 </style>
 </head>
 <body>
+
 <div class="header">
   <div class="header-logo">WOOK'S 회의록</div>
   <div class="header-div"></div>
-  <div class="header-sub">v2.5 Professional Update</div>
-  <div class="header-badge">AI Assistant</div>
+  <div class="header-sub">Professional Analysis v2.5</div>
 </div>
 
 <div class="wrap">
   <div class="sec">
-    <div class="sec-label"><span class="sec-num">01</span> 회의 내용 입력</div>
-    <div class="upload-zone" id="uploadZone">
-      <input type="file" id="fileInput" accept=".txt,.srt,.vtt,.md,.csv" onchange="handleFileUpload(event)">
-      <div class="upload-arrow">↑</div>
-      <div class="upload-title">녹취록 파일을 드래그하거나 클릭하여 업로드</div>
-      <div class="upload-sub">텍스트 기반 파일을 지원합니다</div>
-    </div>
-    <div id="fileAttached" style="display:none;"></div>
-    <div class="divider-or">또는 직접 입력</div>
-    <textarea id="transcriptText" oninput="updateCharCount()" placeholder="회의 내용을 입력하세요..."></textarea>
-    <div class="char-count" id="charCount">0자</div>
+    <div class="sec-label">01. 녹취록 입력</div>
+    <textarea id="transcriptText" placeholder="회의 녹취록을 붙여넣으세요..."></textarea>
   </div>
 
   <div class="sec">
-    <div class="sec-label"><span class="sec-num">02</span> 회의 기본 정보</div>
+    <div class="sec-label">02. 기본 정보</div>
     <div class="meta-grid">
-      <div class="field"><label>회의명</label><input type="text" id="meetingTitle" placeholder="입력하지 않으면 AI가 생성"></div>
-      <div class="field"><label>일시</label><input type="date" id="meetingDate"></div>
-      <div class="field"><label>주관 부서</label><input type="text" id="department"></div>
-      <div class="field"><label>회의 유형</label><input type="text" id="meetingType"></div>
-      <div class="field" style="grid-column:1/-1"><label>참석자 (쉼표로 구분)</label><input type="text" id="attendeeInput"></div>
+      <div class="field"><label>회의명</label><input type="text" id="meetingTitle" placeholder="미입력 시 자동생성"></div>
+      <div class="field"><label>참석자</label><input type="text" id="attendees" placeholder="홍길동, 김철수..."></div>
+      <div class="field"><label>주관부서</label><input type="text" id="dept" placeholder="기획팀"></div>
+      <div class="field"><label>날짜</label><input type="date" id="mDate"></div>
     </div>
   </div>
 
   <div class="sec">
-    <div class="sec-label"><span class="sec-num">03</span> 분석 항목 선택</div>
+    <div class="sec-label">03. 분석 설정</div>
     <div class="options-grid" id="optionsGrid">
-      <div class="opt-toggle active" data-key="background"><div class="opt-sq"></div>회의 배경/목적</div>
-      <div class="opt-toggle active" data-key="summary"><div class="opt-sq"></div>핵심 요약</div>
-      <div class="opt-toggle active" data-key="decisions"><div class="opt-sq"></div>결정사항 & 근거</div>
-      <div class="opt-toggle active" data-key="todo"><div class="opt-sq"></div>TO-DO LIST</div>
-      <div class="opt-toggle active" data-key="openIssues"><div class="opt-sq"></div>미결 사항</div>
-      <div class="opt-toggle active" data-key="risks"><div class="opt-sq"></div>리스크/이슈</div>
-      <div class="opt-toggle active" data-key="sentiment"><div class="opt-sq"></div>분위기 분석</div>
+      <div class="opt-toggle active" data-key="background">회의 배경 및 목적</div>
+      <div class="opt-toggle active" data-key="summary">핵심 요약</div>
+      <div class="opt-toggle active" data-key="decisions">결정사항 & 근거</div>
+      <div class="opt-toggle active" data-key="openIssues">미결 사항</div>
+      <div class="opt-toggle active" data-key="todo">TO-DO LIST</div>
     </div>
   </div>
 
   <div class="sec">
-    <div class="sec-label"><span class="sec-num">04</span> API 및 외부 연동</div>
+    <div class="sec-label">04. API 설정</div>
     <div class="api-section">
-      <div class="api-row"><input type="password
+      <div class="field" style="margin-bottom:10px;">
+        <label>Gemini API Key</label>
+        <input type="password" id="apiKey" placeholder="AIzaSy...">
+      </div>
+      <div class="field">
+        <label>Model</label>
+        <select id="modelSelect">
+          <option value="gemini-2.0-flash">gemini-2.0-flash (권장)</option>
+          <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-generate" id="genBtn" onclick="runAnalysis()">회의록 분석 및 생성</button>
+  <div class="progress-wrap" id="progWrap"><div class="progress-fill" id="progBar"></div></div>
+
+  <div class="result-wrap" id="resultWrap"></div>
+</div>
+
+<script>
+// 초기 세팅
+document.getElementById('mDate').value = new Date().toISOString().split('T')[0];
+const optToggles = document.querySelectorAll('.opt-toggle');
+optToggles.forEach(t => t.onclick = () => t.classList.toggle('active'));
+
+function getPrompt() {
+  return `당신은 대한민국 대기업 비서실 수준의 회의록 작성 전문가입니다. 
+다음 녹취록을 분석하여 반드시 아래 JSON 구조로 응답하십시오. (마크다운 없이 순수 JSON만)
+
+{
+  "metadata": {
+    "title": "회의 제목",
+    "background": "회의가 소집된 구체적인 배경과 논의의 목적 (3문장 내외)"
+  },
+  "summary": "전체 논의를 관통하는 핵심 요약 (함쇼체)",
+  "decisions": [
+    {
+      "item": "결정사항",
+      "rationale": "해당 결정을 내린 논리적 근거 및 데이터 포인트"
+    }
+  ],
+  "openIssues": [
+    {
+      "issue": "미결정된 안건 또는 쟁점",
+      "nextStep": "향후 논의 계획 및 해결 방안"
+    }
+  ],
+  "todo": [
+    {"task": "과제명", "owner": "담당자", "priority": "high|medium|low"}
+  ]
+}`;
+}
+
+async function runAnalysis() {
+  const text = document.getElementById('transcriptText').value;
+  const key = document.getElementById('apiKey').value;
+  if(!text || !key) return alert("내용과 API 키를 확인하세요.");
+
+  const btn = document.getElementById('genBtn');
+  const bar = document.getElementById('progBar');
+  const wrap = document.getElementById('progWrap');
+  
+  btn.disabled = true; wrap.style.display = 'block'; bar.style.width = '30%';
+
+  try {
+    const model = document.getElementById('modelSelect').value;
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: getPrompt() }] },
+        contents: [{ role: 'user', parts: [{ text: `회의명: ${document.getElementById('meetingTitle').value}\n참석자: ${document.getElementById('attendees').value}\n녹취록:\n${text}` }] }],
+        generationConfig: { response_mime_type: "application/json" }
+      })
+    });
+
+    bar.style.width = '70%';
+    const data = await res.json();
+    const result = JSON.parse(data.candidates[0].content.parts[0].text);
+    bar.style.width = '100%';
+    
+    render(result);
+  } catch(e) {
+    alert("분석 실패: " + e.message);
+  } finally {
+    btn.disabled = false; wrap.style.display = 'none';
+  }
+}
+
+function render(d) {
+  const resultWrap = document.getElementById('resultWrap');
+  resultWrap.style.display = 'block';
+  
+  let html = `
+    <div class="doc">
+      <div class="doc-head">
+        <div class="doc-title">${d.metadata.title}</div>
+        <table class="doc-meta-table">
+          <tr><td>일시</td><td>${document.getElementById('mDate').value}</td></tr>
+          <tr><td>주관</td><td>${document.getElementById('dept').value || '-'}</td></tr>
+          <tr><td>참석자</td><td>${document.getElementById('attendees').value || '-'}</td></tr>
+        </table>
+      </div>
+
+      <div class="doc-sec">
+        <div class="doc-sec-title"><span>01</span> 회의 배경 및 목적</div>
+        <div style="font-size:13px; color:var(--slate); line-height:1.7;">${d.metadata.background}</div>
+      </div>
+
+      <div class="doc-sec">
+        <div class="doc-sec-title"><span>02</span> 핵심 요약</div>
+        <div class="summary-text">${d.summary}</div>
+      </div>
+
+      <div class="doc-sec">
+        <div class="doc-sec-title"><span>03</span> 결정사항 및 논리적 근거</div>
+        ${d.decisions.map(dec => `
+          <div class="decision-box">
+            <div class="rationale-tag">RATIONALE</div>
+            <div style="font-weight:600; margin-bottom:8px;">${dec.item}</div>
+            <div style="font-size:12px; color:var(--ink-2);">${dec.rationale}</div>
+          </div>
+        `).join('')}
+      </div>
+
+      <div class="doc-sec">
+        <div class="doc-sec-title"><span>04</span> 미결 안건 및 차기 과제</div>
+        ${d.openIssues.map(oi => `
+          <div class="issue-item">
+            <strong>쟁점: ${oi.issue}</strong><br/>
+            <span style="font-size:11px; color:var(--ink-3);">Next Step: ${oi.nextStep}</span>
+          </div>
+        `).join('')}
+      </div>
+
+      <div class="doc-sec">
+        <div class="doc-sec-title"><span>05</span> TO-DO LIST</div>
+        <table class="todo-table">
+          <thead><tr><th>담당자</th><th>실행 과제</th><th>우선순위</th></tr></thead>
+          <tbody>
+            ${d.todo.map(t => `
+              <tr>
+                <td><span class="owner-tag">${t.owner}</span></td>
+                <td>${t.task}</td>
+                <td><span style="color:${t.priority === 'high' ? 'var(--red)' : 'var(--ink-3)'}">${t.priority.toUpperCase()}</span></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="doc-foot">
+        <div>Generated by WOOK'S AI v2.5</div>
+        <div>
+          <button class="btn-doc" onclick="window.print()">인쇄 / PDF 저장</button>
+        </div>
+      </div>
+    </div>
+  `;
+  resultWrap.innerHTML = html;
+  resultWrap.scrollIntoView({behavior:'smooth'});
+}
+</script>
+
+</body>
+</html>
