@@ -1095,7 +1095,7 @@ async function saveToNotion() {
   // 노션 페이지 생성 payload
   var properties = {
     'Name': { title: [{ text: { content: m.title||'회의록' } }] },
-    '회의내용': { rich_text: [{ text: { content: fullContent.slice(0,2000) } }] }
+    '회의내용': { rich_text: [{ text: { content: String(fullContent||'').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'').slice(0,1990) } }] }
   };
   if (notionType) {
     properties['회의 유형'] = { select: { name: notionType } };
@@ -1103,11 +1103,12 @@ async function saveToNotion() {
 
   // 페이지 본문 블록 구성
   var blocks = [];
-  function heading3(text){ return {object:'block',type:'heading_3',heading_3:{rich_text:[{type:'text',text:{content:text}}]}}; }
-  function para(text){ return {object:'block',type:'paragraph',paragraph:{rich_text:[{type:'text',text:{content:text}}]}}; }
+  function safe(t) { return String(t||'').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'').slice(0,1990); }
+  function heading3(text){ return {object:'block',type:'heading_3',heading_3:{rich_text:[{type:'text',text:{content:safe(text)}}]}}; }
+  function para(text){ return {object:'block',type:'paragraph',paragraph:{rich_text:[{type:'text',text:{content:safe(text)}}]}}; }
   function divider(){ return {object:'block',type:'divider',divider:{}}; }
-  function callout(text, emoji){ return {object:'block',type:'callout',callout:{icon:{type:'emoji',emoji:emoji||'📌'},rich_text:[{type:'text',text:{content:text}}]}}; }
-  function bullet(text){ return {object:'block',type:'bulleted_list_item',bulleted_list_item:{rich_text:[{type:'text',text:{content:text}}]}}; }
+  function callout(text, emoji){ return {object:'block',type:'callout',callout:{icon:{type:'emoji',emoji:emoji||'📌'},rich_text:[{type:'text',text:{content:safe(text)}}]}}; }
+  function bullet(text){ return {object:'block',type:'bulleted_list_item',bulleted_list_item:{rich_text:[{type:'text',text:{content:safe(text)}}]}}; }
 
   // 기본 정보
   blocks.push(callout(
@@ -1196,9 +1197,11 @@ async function saveToNotion() {
         }
       }
     } else {
-      var msg = result.message||JSON.stringify(result);
-      if (res.status===401||res.status===403) msg='API 키를 확인하고, 노션 데이터베이스에 통합(Integration)이 연결되었는지 확인해주세요.';
-      btn.textContent='✗ 오류: '+msg.slice(0,40); btn.disabled=false;
+      var msg = result.message||result.code||JSON.stringify(result).slice(0,200);
+      if (res.status===401||res.status===403) msg='API 키를 확인하고, 노션 DB에 통합이 연결되었는지 확인해주세요.';
+      if (res.status===400) msg='데이터 형식 오류: '+msg;
+      console.error('Notion error:', result);
+      btn.textContent='\u2717 오류: '+msg.slice(0,60); btn.disabled=false;
       setTimeout(function(){ btn.innerHTML='&#8663; 노션에 저장'; }, 4000);
     }
   } catch(e) {
