@@ -148,10 +148,10 @@ textarea::placeholder{color:var(--ink-3);}
 .meter-val{font-family:var(--mono);font-size:11px;color:var(--ink-3);width:32px;text-align:right;}
 .sentiment-badge{display:inline-block;padding:3px 12px;border:1px solid var(--ink-2);font-size:11px;color:var(--ink-2);letter-spacing:1px;margin-bottom:12px;}
 .sentiment-comment{font-size:12px;color:var(--ink-3);font-style:italic;margin-top:10px;padding-left:12px;border-left:2px solid var(--line);}
-.doc-foot{padding:1.25rem 3rem;background:var(--paper-2);border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;}
-.doc-foot-left{font-size:11px;color:var(--ink-3);}
-.doc-foot-right{display:flex;gap:8px;}
-.btn-doc{padding:8px 18px;border:1px solid var(--line-2);background:white;font-family:var(--sans);font-size:12px;color:var(--ink-2);cursor:pointer;transition:all 0.15s;letter-spacing:0.5px;border-radius:0;}
+.doc-foot{padding:1rem 3rem;background:var(--paper-2);border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.doc-foot-left{font-size:11px;color:var(--ink-3);flex-shrink:1;min-width:0;}
+.doc-foot-right{display:flex;gap:6px;flex-shrink:0;align-items:center;flex-wrap:nowrap;}
+.btn-doc{padding:7px 14px;border:1px solid var(--line-2);background:white;font-family:var(--sans);font-size:12px;color:var(--ink-2);cursor:pointer;transition:all 0.15s;letter-spacing:0;border-radius:0;white-space:nowrap;}
 .btn-doc:hover{border-color:var(--ink);color:var(--ink);}
 .btn-doc.primary{background:var(--ink);color:var(--paper);border-color:var(--ink);}
 .btn-doc.primary:hover{background:#3D3D3B;}
@@ -230,6 +230,21 @@ textarea::placeholder{color:var(--ink-3);}
         </select>
         <button class="btn-sm" onclick="detectModels()" id="detectBtn">자동 감지</button>
       </div>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line);">
+        <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-3);margin-bottom:8px;font-weight:400;">Notion 연동 (선택사항)</div>
+        <div class="api-row" style="margin-bottom:6px;">
+          <input type="password" id="notionKeyInput" placeholder="secret_xxxxxxxxxxxx..."
+            oninput="saveNotionKey()" onpaste="setTimeout(saveNotionKey,10)"
+            style="font-family:var(--mono);font-size:12px;">
+          <button class="btn-sm" onclick="toggleNotionKeyVisibility()" id="toggleNotionBtn">보기</button>
+          <button class="btn-sm" onclick="testNotionKey()" id="testNotionBtn">연결 테스트</button>
+        </div>
+        <div style="font-size:11px;color:var(--ink-3);">
+          <a href="https://www.notion.so/my-integrations" target="_blank" style="color:var(--slate);text-decoration:none;">notion.so/my-integrations</a>에서 발급 &nbsp;·&nbsp;
+          <span id="notionKeyStatus"></span>
+        </div>
+        <div id="notionKeyDiag" style="display:none;margin-top:6px;padding:6px 10px;background:var(--paper-2);border-left:2px solid var(--line-2);font-size:11px;font-family:var(--mono);color:var(--ink-2);"></div>
+      </div>
     </div>
   </div>
   <div class="error-box" id="errorBox"></div>
@@ -256,6 +271,8 @@ document.querySelectorAll('#optionsGrid .opt-toggle').forEach(function(el) {
 window.addEventListener('load', function() {
   var saved = cleanKey(localStorage.getItem('minutesai_apikey') || '');
   if (saved) { document.getElementById('apiKeyInput').value = saved; updateKeyStatus(saved); }
+  var nk = cleanKey(localStorage.getItem('minutesai_notionkey') || '');
+  if (nk) { document.getElementById('notionKeyInput').value = nk; saveNotionKey(); }
 });
 
 function cleanKey(v) { return (v||'').replace(/[\s\n\r\t]/g,''); }
@@ -531,7 +548,7 @@ function renderResult(d) {
     });
     html += '</div>'+(s.comment?'<div class="sentiment-comment">'+s.comment+'</div>':'')+'</div>';
   }
-  html += '<div class="doc-foot"><div class="doc-foot-left">작성일시: '+now+' &nbsp;\u00b7&nbsp; AI 자동 작성 (검토 후 사용)</div><div class="doc-foot-right"><button class="btn-doc" onclick="copyMinutes()">텍스트 복사</button><button class="btn-doc" onclick="window.print()">인쇄/PDF</button><button class="btn-doc primary" id="wordBtn" onclick="downloadWord()">&#8595; Word 다운로드</button></div></div>';
+  html += '<div class="doc-foot"><div class="doc-foot-left">작성일시: '+now+' &nbsp;\u00b7&nbsp; AI 자동 작성 (검토 후 사용)</div><div class="doc-foot-right"><button class="btn-doc" onclick="copyMinutes()">텍스트 복사</button><button class="btn-doc" onclick="window.print()">인쇄/PDF</button><button class="btn-doc primary" id="wordBtn" onclick="downloadWord()">&#8595; Word 다운로드</button><button class="btn-doc" id="notionBtn" onclick="saveToNotion()" style="background:var(--slate-bg);color:var(--slate);border-color:#C8D8E0;">&#8663; 노션에 저장</button></div></div>';
   html += '</div>';
   wrap.innerHTML = html;
   wrap.scrollIntoView({behavior:'smooth',block:'start'});
@@ -855,6 +872,162 @@ async function downloadWord() {
     btn.textContent = '오류: '+err.message; btn.disabled = false;
     console.error(err);
     setTimeout(function(){ btn.innerHTML = '&#8595; Word 다운로드'; }, 3000);
+  }
+}
+
+
+function saveNotionKey() {
+  var v = cleanKey(document.getElementById('notionKeyInput').value);
+  document.getElementById('notionKeyInput').value = v;
+  if (v) localStorage.setItem('minutesai_notionkey', v);
+  var el = document.getElementById('notionKeyStatus');
+  if (v && v.length > 10) { el.textContent = '✓ 키 형식 확인됨'; el.style.color='#4A6741'; }
+  else if (v) { el.textContent = '⚠ 키를 다시 확인해주세요'; el.style.color='#8B7355'; }
+  else { el.textContent = ''; }
+}
+function toggleNotionKeyVisibility() {
+  var inp = document.getElementById('notionKeyInput'), btn = document.getElementById('toggleNotionBtn');
+  inp.type = inp.type==='password'?'text':'password';
+  btn.textContent = inp.type==='password'?'보기':'숨기기';
+}
+function getNotionKey() { return cleanKey(document.getElementById('notionKeyInput').value); }
+async function testNotionKey() {
+  var key = getNotionKey(), diag = document.getElementById('notionKeyDiag'), btn = document.getElementById('testNotionBtn');
+  if (!key) { diag.style.display='block'; diag.textContent='노션 API 키를 먼저 입력해주세요.'; return; }
+  btn.textContent='테스트 중...'; btn.disabled=true;
+  diag.style.display='block'; diag.style.color='var(--ink-3)'; diag.textContent='노션 연결 중...';
+  try {
+    var res = await fetch('https://notion-proxy.skknjw.workers.dev/v1/users/me', {
+      headers:{'Authorization':'Bearer '+key,'Notion-Version':'2022-06-28'}
+    });
+    var data = await res.json();
+    if (res.ok) { diag.textContent='✓ 연결 성공! ('+( data.name||data.bot&&data.bot.owner&&data.bot.owner.user&&data.bot.owner.user.name||'연동됨')+')'; diag.style.color='#4A6741'; }
+    else { diag.textContent='✗ '+res.status+': '+(data.message||JSON.stringify(data)); diag.style.color='#9B3A2A'; }
+  } catch(e) { diag.textContent='✗ 오류: '+e.message; diag.style.color='#9B3A2A'; }
+  btn.textContent='연결 테스트'; btn.disabled=false;
+}
+
+async function saveToNotion() {
+  if (!generatedJSON) return;
+  var notionKey = getNotionKey();
+  if (!notionKey || notionKey.length < 10) {
+    alert('노션 API 키를 04번 설정 하단 Notion 연동 칸에 입력해주세요.\n\n발급: notion.so/my-integrations\n→ 새 통합 만들기 → 키 복사\n→ 회의록 데이터베이스에 통합 연결 필요');
+    return;
+  }
+  var btn = document.getElementById('notionBtn');
+  btn.textContent='저장 중...'; btn.disabled=true;
+  var d = generatedJSON, m = d.metadata||{};
+  var DATABASE_ID = 'a34b6587d2368285b88781cb8cba1bb8';
+
+  // 회의내용 요약 텍스트 조합
+  var contentParts = [];
+  if (d.executiveSummary) contentParts.push('【핵심 요약】\n'+d.executiveSummary);
+  if (d.decisions&&d.decisions.length) contentParts.push('【주요 결정사항】\n'+d.decisions.map(function(x,i){return(i+1)+'. '+x;}).join('\n'));
+  if (d.actionItems&&d.actionItems.length) contentParts.push('【TO-DO LIST】\n'+d.actionItems.map(function(a){return'□ ['+a.owner+'] '+a.task+' (기한: '+a.deadline+')';}).join('\n'));
+  if (d.followUps&&d.followUps.length) contentParts.push('【추후 진행계획】\n'+d.followUps.map(function(x,i){return(i+1)+'. '+x;}).join('\n'));
+  if (d.risks&&d.risks.length) contentParts.push('【리스크/이슈】\n'+d.risks.map(function(x,i){return(i+1)+'. '+x;}).join('\n'));
+  var fullContent = contentParts.join('\n\n');
+
+  // 회의 유형 매핑 (노션 DB의 select 옵션에 맞게)
+  var typeMap = {'정기회의':'주간 회의','주간회의':'주간 회의','임원회의':'임원회의','상품회의':'상품회의','S&OP':'S&OP','scm':'scm팀장회의'};
+  var rawType = (m.type||'').trim();
+  var notionType = typeMap[rawType] || null;
+
+  // 노션 페이지 생성 payload
+  var properties = {
+    'Name': { title: [{ text: { content: m.title||'회의록' } }] },
+    '회의내용': { rich_text: [{ text: { content: fullContent.slice(0,2000) } }] }
+  };
+  if (notionType) {
+    properties['회의 유형'] = { select: { name: notionType } };
+  }
+
+  // 페이지 본문 블록 구성
+  var blocks = [];
+  function heading3(text){ return {object:'block',type:'heading_3',heading_3:{rich_text:[{type:'text',text:{content:text}}]}}; }
+  function para(text){ return {object:'block',type:'paragraph',paragraph:{rich_text:[{type:'text',text:{content:text}}]}}; }
+  function divider(){ return {object:'block',type:'divider',divider:{}}; }
+  function callout(text, emoji){ return {object:'block',type:'callout',callout:{icon:{type:'emoji',emoji:emoji||'📌'},rich_text:[{type:'text',text:{content:text}}]}}; }
+  function bullet(text){ return {object:'block',type:'bulleted_list_item',bulleted_list_item:{rich_text:[{type:'text',text:{content:text}}]}}; }
+
+  // 기본 정보
+  blocks.push(callout(
+    '일시: '+(m.date||'—')+(m.duration?' (약 '+m.duration+'분)':'')+'\n주관: '+(m.department||'—')+'\n유형: '+(m.type||'—'),
+    '📋'
+  ));
+  blocks.push(divider());
+
+  if (isSelected('summary') && d.executiveSummary) {
+    blocks.push(heading3('핵심 요약'));
+    blocks.push(para(d.executiveSummary));
+    if (d.keyInsights&&d.keyInsights.length) d.keyInsights.forEach(function(i){ blocks.push(bullet('→ '+i)); });
+    blocks.push(divider());
+  }
+  if (isSelected('decisions') && d.decisions&&d.decisions.length) {
+    blocks.push(heading3('주요 결정사항'));
+    d.decisions.forEach(function(dec,i){ blocks.push(bullet((i+1)+'. '+dec)); });
+    blocks.push(divider());
+  }
+  if (isSelected('todo') && d.actionItems&&d.actionItems.length) {
+    blocks.push(heading3('TO-DO LIST'));
+    d.actionItems.forEach(function(a){ blocks.push(bullet('□ ['+a.owner+'] '+a.task+' — 기한: '+a.deadline+' / 우선순위: '+({high:'긴급',medium:'보통',low:'낮음'}[a.priority]||a.priority))); });
+    blocks.push(divider());
+  }
+  if (isSelected('risks') && d.risks&&d.risks.length) {
+    blocks.push(heading3('리스크 및 이슈'));
+    d.risks.forEach(function(r,i){ blocks.push(bullet((i+1)+'. '+r)); });
+    blocks.push(divider());
+  }
+  if (isSelected('followups') && d.followUps&&d.followUps.length) {
+    blocks.push(heading3('추후 진행계획'));
+    d.followUps.forEach(function(f,i){ blocks.push(bullet((i+1)+'. '+f)); });
+    blocks.push(divider());
+  }
+  if (isSelected('sentiment') && d.sentiment) {
+    var sv = d.sentiment, oM={positive:'긍정적',neutral:'중립',negative:'부정적',mixed:'복합적'};
+    blocks.push(heading3('회의 분위기'));
+    blocks.push(para('전반적 분위기: '+(oM[sv.overall]||sv.overall)+' | 합의 수준: '+(sv.consensus||0)+'% | 참여도: '+(sv.engagement||0)+'% | 긴급도: '+(sv.urgency||0)+'%'));
+    if (sv.comment) blocks.push(para('"'+sv.comment+'"'));
+  }
+
+  try {
+    var res = await fetch('https://notion-proxy.skknjw.workers.dev/v1/pages', {
+      method:'POST',
+      headers:{
+        'Authorization':'Bearer '+notionKey,
+        'Content-Type':'application/json',
+        'Notion-Version':'2022-06-28'
+      },
+      body: JSON.stringify({
+        parent:{database_id: DATABASE_ID},
+        properties: properties,
+        children: blocks.slice(0,100)
+      })
+    });
+    var result = await res.json();
+    if (res.ok) {
+      btn.textContent='✓ 노션 저장 완료!'; btn.disabled=false;
+      setTimeout(function(){ btn.innerHTML='&#8663; 노션에 저장'; }, 3000);
+      if (result.url) {
+        var link = document.createElement('a');
+        link.href = result.url; link.target='_blank';
+        link.textContent = '노션에서 열기 →';
+        link.style.cssText = 'display:block;margin-top:8px;font-size:11px;color:var(--slate);text-decoration:none;text-align:right;';
+        var footer = document.querySelector('.doc-foot-right');
+        if (footer && !document.getElementById('notionOpenLink')) {
+          link.id = 'notionOpenLink';
+          footer.appendChild(link);
+        }
+      }
+    } else {
+      var msg = result.message||JSON.stringify(result);
+      if (res.status===401||res.status===403) msg='API 키를 확인하고, 노션 데이터베이스에 통합(Integration)이 연결되었는지 확인해주세요.';
+      btn.textContent='✗ 오류: '+msg.slice(0,40); btn.disabled=false;
+      setTimeout(function(){ btn.innerHTML='&#8663; 노션에 저장'; }, 4000);
+    }
+  } catch(e) {
+    btn.textContent='✗ '+e.message.slice(0,40); btn.disabled=false;
+    setTimeout(function(){ btn.innerHTML='&#8663; 노션에 저장'; }, 4000);
   }
 }
 
