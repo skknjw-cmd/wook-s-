@@ -214,6 +214,7 @@ textarea::placeholder{color:var(--ink-3);}
         <input type="password" id="apiKeyInput" placeholder="AIzaSy..." oninput="saveApiKey()" onpaste="setTimeout(saveApiKey,10)">
         <button class="btn-sm" onclick="toggleApiKeyVisibility()" id="toggleApiBtn">보기</button>
         <button class="btn-sm" onclick="testApiKey()" id="testKeyBtn">키 테스트</button>
+        <button class="btn-sm" onclick="clearGeminiKey()" style="color:var(--red);border-color:var(--red-bg);" title="저장된 키 삭제">삭제</button>
       </div>
       <div class="api-meta">
         <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com에서 무료 발급</a>
@@ -238,6 +239,7 @@ textarea::placeholder{color:var(--ink-3);}
             style="font-family:var(--mono);font-size:12px;">
           <button class="btn-sm" onclick="toggleNotionKeyVisibility()" id="toggleNotionBtn">보기</button>
           <button class="btn-sm" onclick="testNotionKey()" id="testNotionBtn">연결 테스트</button>
+          <button class="btn-sm" onclick="clearNotionKey()" style="color:var(--red);border-color:var(--red-bg);" title="저장된 키 삭제">삭제</button>
         </div>
         <div style="font-size:11px;color:var(--ink-3);">
           <a href="https://www.notion.so/my-integrations" target="_blank" style="color:var(--slate);text-decoration:none;">notion.so/my-integrations</a>에서 발급 &nbsp;·&nbsp;
@@ -368,6 +370,24 @@ function setProgress(pct, steps) {
   if (steps) document.getElementById('progressSteps').innerHTML = steps.map(function(s){return '<span class="ps '+s.status+'">'+s.label+'</span>';}).join('');
 }
 function showError(msg) { var b=document.getElementById('errorBox'); b.style.display='block'; b.textContent=msg; }
+function clearGeminiKey() {
+  if (!confirm('저장된 Gemini API 키를 삭제할까요?')) return;
+  localStorage.removeItem('minutesai_apikey');
+  document.getElementById('apiKeyInput').value = '';
+  var el = document.getElementById('keyStatus');
+  if (el) { el.textContent = ''; }
+  var diag = document.getElementById('keyDiag');
+  if (diag) { diag.style.display='none'; diag.textContent=''; }
+}
+function clearNotionKey() {
+  if (!confirm('저장된 Notion API 키를 삭제할까요?')) return;
+  localStorage.removeItem('minutesai_notionkey');
+  document.getElementById('notionKeyInput').value = '';
+  var el = document.getElementById('notionKeyStatus');
+  if (el) { el.textContent = ''; }
+  var diag = document.getElementById('notionKeyDiag');
+  if (diag) { diag.style.display='none'; diag.textContent=''; }
+}
 function clearError() { document.getElementById('errorBox').style.display='none'; }
 
 function buildSystemPrompt() {
