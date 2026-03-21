@@ -211,7 +211,7 @@ textarea::placeholder{color:var(--ink-3);}
     <div class="sec-label"><span class="sec-num">04</span> Gemini API 설정</div>
     <div class="api-section">
       <div class="api-row">
-        <input type="password" id="apiKeyInput" placeholder="AIzaSy..." oninput="saveApiKey()" onpaste="setTimeout(saveApiKey,10)">
+        <input type="password" id="apiKeyInput" placeholder="AIzaSy..." autocomplete="off" oninput="saveApiKey()" onpaste="setTimeout(saveApiKey,10)">
         <button class="btn-sm" onclick="toggleApiKeyVisibility()" id="toggleApiBtn">보기</button>
         <button class="btn-sm" onclick="testApiKey()" id="testKeyBtn">키 테스트</button>
         <button class="btn-sm" onclick="clearGeminiKey()" style="color:var(--red);border-color:var(--red-bg);" title="저장된 키 삭제">삭제</button>
@@ -234,7 +234,7 @@ textarea::placeholder{color:var(--ink-3);}
       <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line);">
         <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-3);margin-bottom:8px;font-weight:400;">Notion 연동 (선택사항)</div>
         <div class="api-row" style="margin-bottom:6px;">
-          <input type="password" id="notionKeyInput" placeholder="secret_xxxxxxxxxxxx..."
+          <input type="password" id="notionKeyInput" placeholder="secret_xxxxxxxxxxxx..." autocomplete="off"
             oninput="saveNotionKey()" onpaste="setTimeout(saveNotionKey,10)"
             style="font-family:var(--mono);font-size:12px;">
           <button class="btn-sm" onclick="toggleNotionKeyVisibility()" id="toggleNotionBtn">보기</button>
@@ -271,10 +271,17 @@ document.querySelectorAll('#optionsGrid .opt-toggle').forEach(function(el) {
 });
 
 window.addEventListener('load', function() {
-  var saved = cleanKey(localStorage.getItem('minutesai_apikey') || '');
-  if (saved) { document.getElementById('apiKeyInput').value = saved; updateKeyStatus(saved); }
-  var nk = cleanKey(localStorage.getItem('minutesai_notionkey') || '');
-  if (nk) { document.getElementById('notionKeyInput').value = nk; saveNotionKey(); }
+  // 브라우저 자동완성 방지: 먼저 빈값으로 초기화 후 localStorage 값으로 복원
+  var gInp = document.getElementById('apiKeyInput');
+  var nInp = document.getElementById('notionKeyInput');
+  if (gInp) gInp.value = '';
+  if (nInp) nInp.value = '';
+  setTimeout(function() {
+    var saved = cleanKey(localStorage.getItem('minutesai_apikey') || '');
+    if (saved && gInp) { gInp.value = saved; updateKeyStatus(saved); }
+    var nk = cleanKey(localStorage.getItem('minutesai_notionkey') || '');
+    if (nk && nInp) { nInp.value = nk; saveNotionKey(); }
+  }, 100);
 });
 
 function cleanKey(v) { return (v||'').replace(/[\s\n\r\t]/g,''); }
@@ -373,18 +380,24 @@ function showError(msg) { var b=document.getElementById('errorBox'); b.style.dis
 function clearGeminiKey() {
   if (!confirm('저장된 Gemini API 키를 삭제할까요?')) return;
   localStorage.removeItem('minutesai_apikey');
-  document.getElementById('apiKeyInput').value = '';
+  var inp = document.getElementById('apiKeyInput');
+  inp.value = '';
+  inp.setAttribute('value', '');
+  inp.removeAttribute('value');
   var el = document.getElementById('keyStatus');
-  if (el) { el.textContent = ''; }
+  if (el) { el.textContent = '키가 삭제되었습니다'; el.style.color = '#9B3A2A'; setTimeout(function(){ el.textContent=''; }, 2000); }
   var diag = document.getElementById('keyDiag');
   if (diag) { diag.style.display='none'; diag.textContent=''; }
 }
 function clearNotionKey() {
   if (!confirm('저장된 Notion API 키를 삭제할까요?')) return;
   localStorage.removeItem('minutesai_notionkey');
-  document.getElementById('notionKeyInput').value = '';
+  var inp = document.getElementById('notionKeyInput');
+  inp.value = '';
+  inp.setAttribute('value', '');
+  inp.removeAttribute('value');
   var el = document.getElementById('notionKeyStatus');
-  if (el) { el.textContent = ''; }
+  if (el) { el.textContent = '키가 삭제되었습니다'; el.style.color = '#9B3A2A'; setTimeout(function(){ el.textContent=''; }, 2000); }
   var diag = document.getElementById('notionKeyDiag');
   if (diag) { diag.style.display='none'; diag.textContent=''; }
 }
