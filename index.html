@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -168,7 +167,7 @@ textarea::placeholder{color:var(--ink-3);}
   <div class="header-logo">WOOK'S 회의록</div>
   <div class="header-div"></div>
   <div class="header-sub">회의록 자동 작성 시스템</div>
-  <div class="header-badge">v2.1</div>
+  <div class="header-badge">v2.2</div>
 </div>
 <div class="wrap">
   <div class="sec">
@@ -212,7 +211,7 @@ textarea::placeholder{color:var(--ink-3);}
     <div class="sec-label"><span class="sec-num">04</span> Gemini API 설정</div>
     <div class="api-section">
       <div class="api-row">
-        <input type="password" id="apiKeyInput" placeholder="AIzaSy..." autocomplete="off" oninput="saveApiKey()" onpaste="setTimeout(saveApiKey,10)">
+        <input type="text" id="apiKeyInput" placeholder="AIzaSy..." autocomplete="new-password" oninput="saveApiKey()" onpaste="setTimeout(saveApiKey,10)" style="-webkit-text-security:disc;text-security:disc;">
         <button class="btn-sm" onclick="toggleApiKeyVisibility()" id="toggleApiBtn">보기</button>
         <button class="btn-sm" onclick="testApiKey()" id="testKeyBtn">키 테스트</button>
         <button class="btn-sm" onclick="clearGeminiKey()" style="color:var(--red);border-color:var(--red-bg);" title="저장된 키 삭제">삭제</button>
@@ -235,7 +234,7 @@ textarea::placeholder{color:var(--ink-3);}
       <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line);">
         <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-3);margin-bottom:8px;font-weight:400;">Notion 연동 (선택사항)</div>
         <div class="api-row" style="margin-bottom:6px;">
-          <input type="password" id="notionKeyInput" placeholder="secret_xxxxxxxxxxxx..." autocomplete="off"
+          <input type="text" id="notionKeyInput" placeholder="secret_xxxxxxxxxxxx..." autocomplete="new-password" style="-webkit-text-security:disc;text-security:disc;"
             oninput="saveNotionKey()" onpaste="setTimeout(saveNotionKey,10)"
             style="font-family:var(--mono);font-size:12px;">
           <button class="btn-sm" onclick="toggleNotionKeyVisibility()" id="toggleNotionBtn">보기</button>
@@ -300,8 +299,16 @@ function updateKeyStatus(v) {
 }
 function toggleApiKeyVisibility() {
   var inp = document.getElementById('apiKeyInput'), btn = document.getElementById('toggleApiBtn');
-  inp.type = inp.type === 'password' ? 'text' : 'password';
-  btn.textContent = inp.type === 'password' ? '보기' : '숨기기';
+  var isHidden = inp.style.webkitTextSecurity === 'disc' || inp.style.webkitTextSecurity === '';
+  if (isHidden) {
+    inp.style.webkitTextSecurity = 'none';
+    inp.style.textSecurity = 'none';
+    btn.textContent = '숨기기';
+  } else {
+    inp.style.webkitTextSecurity = 'disc';
+    inp.style.textSecurity = 'disc';
+    btn.textContent = '보기';
+  }
 }
 function getApiKey() { return cleanKey(document.getElementById('apiKeyInput').value); }
 function toggleOption(el) {
@@ -385,6 +392,8 @@ function clearGeminiKey() {
   inp.value = '';
   inp.setAttribute('value', '');
   inp.removeAttribute('value');
+  inp.style.webkitTextSecurity = 'disc';
+  inp.style.textSecurity = 'disc';
   var el = document.getElementById('keyStatus');
   if (el) { el.textContent = '키가 삭제되었습니다'; el.style.color = '#9B3A2A'; setTimeout(function(){ el.textContent=''; }, 2000); }
   var diag = document.getElementById('keyDiag');
@@ -397,6 +406,8 @@ function clearNotionKey() {
   inp.value = '';
   inp.setAttribute('value', '');
   inp.removeAttribute('value');
+  inp.style.webkitTextSecurity = 'disc';
+  inp.style.textSecurity = 'disc';
   var el = document.getElementById('notionKeyStatus');
   if (el) { el.textContent = '키가 삭제되었습니다'; el.style.color = '#9B3A2A'; setTimeout(function(){ el.textContent=''; }, 2000); }
   var diag = document.getElementById('notionKeyDiag');
@@ -970,8 +981,16 @@ function saveNotionKey() {
 }
 function toggleNotionKeyVisibility() {
   var inp = document.getElementById('notionKeyInput'), btn = document.getElementById('toggleNotionBtn');
-  inp.type = inp.type==='password'?'text':'password';
-  btn.textContent = inp.type==='password'?'보기':'숨기기';
+  var isHidden = inp.style.webkitTextSecurity === 'disc' || inp.style.webkitTextSecurity === '';
+  if (isHidden) {
+    inp.style.webkitTextSecurity = 'none';
+    inp.style.textSecurity = 'none';
+    btn.textContent = '숨기기';
+  } else {
+    inp.style.webkitTextSecurity = 'disc';
+    inp.style.textSecurity = 'disc';
+    btn.textContent = '보기';
+  }
 }
 function getNotionKey() { return cleanKey(document.getElementById('notionKeyInput').value); }
 async function testNotionKey() {
