@@ -88,7 +88,6 @@ textarea::placeholder{color:var(--ink-3);}
 .error-box{padding:12px 16px;background:var(--red-bg);border-left:3px solid var(--red);font-size:13px;color:var(--red);margin-top:1rem;display:none;white-space:pre-line;line-height:1.7;}
 .spinner{width:16px;height:16px;border:1.5px solid rgba(247,245,240,0.3);border-top-color:var(--paper);border-radius:50%;animation:spin 0.7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
-/* ── RESULT ── */
 .result-wrap{display:none;margin-top:3rem;}
 .result-wrap.show{display:block;}
 .doc{background:white;border:1px solid var(--line);}
@@ -160,6 +159,14 @@ textarea::placeholder{color:var(--ink-3);}
 @media(max-width:640px){.wrap{padding:2rem 1rem 3rem;}.doc-head,.doc-sec{padding:1.5rem 1.25rem;}.doc-foot{flex-direction:column;gap:10px;}.meta-grid{grid-template-columns:1fr 1fr;}}
 .fadeIn{animation:fadeIn 0.5s ease forwards;}
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+/* ── 녹음 기능 ── */
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.record-area{display:flex;align-items:center;gap:12px;padding:10px 0;flex-wrap:wrap;}
+.record-interim{font-size:12px;color:var(--ink-3);font-style:italic;min-height:20px;padding:6px 10px;border-left:2px solid var(--line);margin-top:4px;display:none;background:var(--paper-2);}
+.btn-record{padding:10px 20px;border:1px solid var(--line);background:white;font-family:var(--sans);font-size:13px;color:var(--ink-2);cursor:pointer;transition:all 0.2s;border-radius:0;display:flex;align-items:center;gap:8px;}
+.btn-record:hover{border-color:var(--ink);color:var(--ink);}
+.btn-record.recording{background:var(--red);color:white;border-color:var(--red);}
+.record-dot{width:8px;height:8px;border-radius:50%;background:currentColor;display:inline-block;flex-shrink:0;}
 </style>
 </head>
 <body>
@@ -167,7 +174,7 @@ textarea::placeholder{color:var(--ink-3);}
   <div class="header-logo">WOOK'S 회의록</div>
   <div class="header-div"></div>
   <div class="header-sub">회의록 자동 작성 시스템</div>
-  <div class="header-badge">v3.0</div>
+  <div class="header-badge">v3.1</div>
 </div>
 <div class="wrap">
   <div class="sec">
@@ -180,6 +187,19 @@ textarea::placeholder{color:var(--ink-3);}
       <div class="file-tags"><span class="file-tag">.txt</span><span class="file-tag">.srt</span><span class="file-tag">.vtt</span><span class="file-tag">.md</span></div>
     </div>
     <div id="fileAttached" style="display:none;"></div>
+    <div class="divider-or">또는 음성으로 녹음</div>
+    <div class="record-area">
+      <button class="btn-record" id="recordBtn" onclick="toggleRecording()">
+        <span class="record-dot" id="recordDot"></span>
+        <span id="recordBtnText">녹음 시작</span>
+      </button>
+      <div id="recordStatus" style="display:none;align-items:center;gap:8px;">
+        <span style="font-size:12px;color:var(--red);font-weight:500;">녹음 중</span>
+        <span style="font-size:11px;color:var(--ink-3);">— 말씀하시면 실시간으로 변환됩니다</span>
+      </div>
+      <span id="recordBrowserWarn" style="font-size:11px;color:var(--ink-3);display:none;">※ Chrome 브라우저에서만 지원됩니다</span>
+    </div>
+    <div id="recordInterim" class="record-interim"></div>
     <div class="divider-or">또는 직접 입력</div>
     <textarea id="transcriptText" oninput="updateCharCount()" placeholder="회의 녹취록 또는 회의 내용을 입력하세요.&#10;&#10;예시)&#10;[09:00] 홍길동 팀장: 이번 분기 실적 검토와 하반기 계획을 논의하겠습니다.&#10;[09:03] 김철수 과장: 2분기 매출이 전년 동기 대비 15% 증가했습니다..."></textarea>
     <div class="char-count" id="charCount">0자</div>
@@ -237,9 +257,7 @@ textarea::placeholder{color:var(--ink-3);}
       <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line);">
         <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-3);margin-bottom:8px;font-weight:400;">Notion 연동 (선택사항)</div>
         <div class="api-row" style="margin-bottom:6px;">
-          <input type="text" id="notionKeyInput" placeholder="secret_xxxxxxxxxxxx..." autocomplete="new-password" style="-webkit-text-security:disc;text-security:disc;"
-            oninput="saveNotionKey()" onpaste="setTimeout(saveNotionKey,10)"
-            style="font-family:var(--mono);font-size:12px;">
+          <input type="text" id="notionKeyInput" placeholder="secret_xxxxxxxxxxxx..." autocomplete="new-password" style="-webkit-text-security:disc;text-security:disc;" oninput="saveNotionKey()" onpaste="setTimeout(saveNotionKey,10)">
           <button class="btn-sm" onclick="toggleNotionKeyVisibility()" id="toggleNotionBtn">보기</button>
           <button class="btn-sm" onclick="testNotionKey()" id="testNotionBtn">연결 테스트</button>
           <button class="btn-sm" onclick="clearNotionKey()" style="color:var(--red);border-color:var(--red-bg);" title="저장된 키 삭제">삭제</button>
@@ -251,9 +269,7 @@ textarea::placeholder{color:var(--ink-3);}
         <div id="notionKeyDiag" style="display:none;margin-top:6px;padding:6px 10px;background:var(--paper-2);border-left:2px solid var(--line-2);font-size:11px;font-family:var(--mono);color:var(--ink-2);"></div>
         <div style="margin-top:10px;">
           <div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--ink-3);margin-bottom:5px;font-weight:400;">저장할 노션 데이터베이스 ID</div>
-          <input type="text" id="notionDbId" placeholder="a34b6587d2368285b88781cb8cba1bb8" autocomplete="off"
-            oninput="saveNotionDbId()" onpaste="setTimeout(saveNotionDbId,10)"
-            style="width:100%;padding:7px 10px;border:1px solid var(--line);background:var(--paper);font-family:var(--mono);font-size:11px;color:var(--ink);outline:none;border-radius:0;">
+          <input type="text" id="notionDbId" placeholder="a34b6587d2368285b88781cb8cba1bb8" autocomplete="off" oninput="saveNotionDbId()" onpaste="setTimeout(saveNotionDbId,10)" style="width:100%;padding:7px 10px;border:1px solid var(--line);background:var(--paper);font-family:var(--mono);font-size:11px;color:var(--ink);outline:none;border-radius:0;">
           <div style="font-size:11px;color:var(--ink-3);margin-top:4px;">노션 DB URL에서 복사 · 현재 기본값: ✏️ 회의록 DB</div>
         </div>
       </div>
@@ -270,967 +286,109 @@ textarea::placeholder{color:var(--ink-3);}
   <button class="btn-generate" id="generateBtn" onclick="generateMinutes()">회의록 자동 생성</button>
   <div class="result-wrap" id="resultWrap"></div>
 </div>
-
 <script>
-var uploadedContent = '';
-var generatedJSON = null;
-var selectedKeys = {};
-
-document.getElementById('meetingDate').value = new Date().toISOString().split('T')[0];
-
-// 옵션 초기 상태 수집
-// init selectedKeys
-document.querySelectorAll('#optionsGrid .opt-toggle').forEach(function(el) {
-  selectedKeys[el.getAttribute('data-key')] = el.classList.contains('active');
+var uploadedContent='';var generatedJSON=null;var selectedKeys={};
+document.getElementById('meetingDate').value=new Date().toISOString().split('T')[0];
+document.querySelectorAll('#optionsGrid .opt-toggle').forEach(function(el){selectedKeys[el.getAttribute('data-key')]=el.classList.contains('active');});
+window.addEventListener('load',function(){
+  var gInp=document.getElementById('apiKeyInput');var nInp=document.getElementById('notionKeyInput');
+  if(gInp)gInp.value='';if(nInp)nInp.value='';
+  setTimeout(function(){
+    var saved=cleanKey(localStorage.getItem('minutesai_apikey')||'');
+    if(saved&&gInp){gInp.value=saved;updateKeyStatus(saved);}
+    var nk=cleanKey(localStorage.getItem('minutesai_notionkey')||'');
+    if(nk&&nInp){nInp.value=nk;saveNotionKey();}
+    var dbId=localStorage.getItem('minutesai_notiondbid')||'';
+    if(dbId){var dbInp=document.getElementById('notionDbId');if(dbInp)dbInp.value=dbId;}
+  },100);
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){
+    document.getElementById('recordBrowserWarn').style.display='inline';
+    var rb=document.getElementById('recordBtn');rb.disabled=true;rb.style.opacity='0.4';rb.style.cursor='not-allowed';
+  }
 });
+function cleanKey(v){return(v||'').replace(/[\s\n\r\t]/g,'');}
+function saveApiKey(){var v=cleanKey(document.getElementById('apiKeyInput').value);document.getElementById('apiKeyInput').value=v;if(v)localStorage.setItem('minutesai_apikey',v);updateKeyStatus(v);}
+function updateKeyStatus(v){var el=document.getElementById('keyStatus');if(!el)return;if(v&&v.startsWith('AIza')&&v.length>=35){el.textContent='\u2713 확인됨';el.style.color='#4A6741';}else if(v){el.textContent='\u26a0 AIza... 형식 확인';el.style.color='#8B7355';}else{el.textContent='';}}
+function toggleApiKeyVisibility(){var inp=document.getElementById('apiKeyInput'),btn=document.getElementById('toggleApiBtn');var isHidden=inp.style.webkitTextSecurity==='disc'||inp.style.webkitTextSecurity==='';if(isHidden){inp.style.webkitTextSecurity='none';inp.style.textSecurity='none';btn.textContent='숨기기';}else{inp.style.webkitTextSecurity='disc';inp.style.textSecurity='disc';btn.textContent='보기';}}
+function getApiKey(){return cleanKey(document.getElementById('apiKeyInput').value);}
+function toggleOption(el){el.classList.toggle('active');selectedKeys[el.getAttribute('data-key')]=el.classList.contains('active');}
+function isSelected(key){return!!selectedKeys[key];}
+function getSelectedSections(){var map={summary:'핵심 요약',attendees:'참석자 분석',agenda:'아젠다별 요약',decisions:'주요 결정사항',todo:'TO-DO LIST',risks:'리스크/이슈',followups:'추후 진행계획',sentiment:'회의 분위기',context:'배경 및 목적',openissues:'미결정 사항',keywords:'키워드 태그'};return Object.keys(selectedKeys).filter(function(k){return selectedKeys[k];}).map(function(k){return map[k];});}
+async function testApiKey(){var key=getApiKey(),diag=document.getElementById('keyDiag'),btn=document.getElementById('testKeyBtn');if(!key){diag.style.display='block';diag.textContent='키를 먼저 입력해주세요.';return;}btn.textContent='테스트 중...';btn.disabled=true;diag.style.display='block';diag.style.color='var(--ink-3)';diag.textContent='길이: '+key.length+'자 | '+key.slice(0,8)+'... | 연결 중...';try{var model=document.getElementById('geminiModel').value;var res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+model+':generateContent?key='+key,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{role:'user',parts:[{text:'안녕'}]}],generationConfig:{maxOutputTokens:5}})});var data=await res.json();if(res.ok){diag.textContent='\u2713 '+model+' 연결 성공 (길이: '+key.length+'자)';diag.style.color='#4A6741';}else{diag.textContent='\u2717 '+res.status+': '+(data.error&&data.error.message)+' | 길이: '+key.length+'자';diag.style.color='#9B3A2A';}}catch(e){diag.textContent='\u2717 네트워크 오류: '+e.message;diag.style.color='#9B3A2A';}btn.textContent='키 테스트';btn.disabled=false;}
+async function detectModels(){var key=getApiKey(),diag=document.getElementById('keyDiag'),btn=document.getElementById('detectBtn');if(!key){diag.style.display='block';diag.textContent='키를 먼저 입력해주세요.';return;}btn.textContent='감지 중...';btn.disabled=true;diag.style.display='block';diag.style.color='var(--ink-3)';diag.textContent='모델 목록 조회 중...';try{var res=await fetch('https://generativelanguage.googleapis.com/v1beta/models?key='+key);var data=await res.json();if(!res.ok)throw new Error((data.error&&data.error.message)||res.status);var models=(data.models||[]).filter(function(m){return m.supportedGenerationMethods&&m.supportedGenerationMethods.indexOf('generateContent')>-1;}).map(function(m){return m.name.replace('models/','');}).filter(function(n){return n.indexOf('gemini')===0;});if(!models.length)throw new Error('사용 가능한 모델 없음');var sel=document.getElementById('geminiModel');sel.innerHTML=models.map(function(m){return'<option value="'+m+'">'+m+'</option>';}).join('');diag.textContent='\u2713 '+models.length+'개 모델 감지 완료';diag.style.color='#4A6741';}catch(e){diag.textContent='\u2717 감지 실패: '+e.message;diag.style.color='#9B3A2A';}btn.textContent='자동 감지';btn.disabled=false;}
+function updateCharCount(){document.getElementById('charCount').textContent=document.getElementById('transcriptText').value.length.toLocaleString()+'자';}
+function handleFileUpload(e){var file=e.target.files[0];if(!file)return;var reader=new FileReader();reader.onload=function(ev){uploadedContent=ev.target.result;document.getElementById('transcriptText').value=uploadedContent;updateCharCount();var kb=(file.size/1024).toFixed(1);document.getElementById('fileAttached').innerHTML='<div class="file-ok"><div><div class="file-ok-name">'+file.name+'</div><div class="file-ok-size">'+kb+'KB \u00b7 로드 완료</div></div><button class="file-remove" onclick="removeFile()">\u00d7</button></div>';document.getElementById('fileAttached').style.display='block';};reader.readAsText(file,'UTF-8');}
+function removeFile(){uploadedContent='';document.getElementById('fileAttached').style.display='none';document.getElementById('fileInput').value='';document.getElementById('transcriptText').value='';updateCharCount();}
+function setProgress(pct,steps){document.getElementById('progressBar').style.width=pct+'%';if(steps)document.getElementById('progressSteps').innerHTML=steps.map(function(s){return'<span class="ps '+s.status+'">'+s.label+'</span>';}).join('');}
+function showError(msg){var b=document.getElementById('errorBox');b.style.display='block';b.textContent=msg;}
+function saveNotionDbId(){var v=(document.getElementById('notionDbId').value||'').replace(/-/g,'').trim();if(v)localStorage.setItem('minutesai_notiondbid',v);}
+function getNotionDbId(){var inp=(document.getElementById('notionDbId').value||'').replace(/-/g,'').trim();if(inp)return inp;return localStorage.getItem('minutesai_notiondbid')||'a34b6587d2368285b88781cb8cba1bb8';}
+function clearGeminiKey(){if(!confirm('저장된 Gemini API 키를 삭제할까요?'))return;localStorage.removeItem('minutesai_apikey');var inp=document.getElementById('apiKeyInput');inp.value='';inp.setAttribute('value','');inp.removeAttribute('value');inp.style.webkitTextSecurity='disc';inp.style.textSecurity='disc';var el=document.getElementById('keyStatus');if(el){el.textContent='키가 삭제되었습니다';el.style.color='#9B3A2A';setTimeout(function(){el.textContent='';},2000);}var diag=document.getElementById('keyDiag');if(diag){diag.style.display='none';diag.textContent='';}}
+function clearNotionKey(){if(!confirm('저장된 Notion API 키를 삭제할까요?'))return;localStorage.removeItem('minutesai_notionkey');var inp=document.getElementById('notionKeyInput');inp.value='';inp.setAttribute('value','');inp.removeAttribute('value');inp.style.webkitTextSecurity='disc';inp.style.textSecurity='disc';var el=document.getElementById('notionKeyStatus');if(el){el.textContent='키가 삭제되었습니다';el.style.color='#9B3A2A';setTimeout(function(){el.textContent='';},2000);}var diag=document.getElementById('notionKeyDiag');if(diag){diag.style.display='none';diag.textContent='';}}
+function clearError(){document.getElementById('errorBox').style.display='none';}
+function buildSystemPrompt(){var sections=getSelectedSections();var sectionList=sections.join(', ');var jsonFields='{\n  "metadata": {"title":"회의명","date":"날짜","duration":"소요시간(분)","type":"회의유형","department":"주관부서","totalAttendees":숫자,"location":"장소"},\n';if(isSelected('summary'))jsonFields+='  "executiveSummary": "경영진 보고용 핵심 요약 (3~5문장, ~함. 체)",\n  "keyInsights": ["인사이트1","인사이트2"],\n';if(isSelected('attendees'))jsonFields+='  "attendees": [{"name":"이름","role":"직책","contribution":"high|medium|low","colorKey":"moss|sand|slate|red"}],\n';if(isSelected('agenda'))jsonFields+='  "agenda": [{"title":"아젠다","summary":"핵심내용","duration":"분"}],\n';if(isSelected('decisions'))jsonFields+='  "decisions": ["결정사항1 (~하기로 함)","결정사항2"],\n';if(isSelected('todo'))jsonFields+='  "actionItems": [{"task":"실행과제","owner":"담당자","deadline":"기한","priority":"high|medium|low","context":"비고"}],\n';if(isSelected('context'))jsonFields+='  "meetingContext": {"background":"이 회의가 열린 배경","objective":"이 회의의 목적","expectedOutcome":"기대했던 결과"},\n';if(isSelected('openissues'))jsonFields+='  "openIssues": [{"issue":"미결정 사항 내용","reason":"결론 미도출 이유","nextStep":"다음 단계"}],\n';if(isSelected('keywords'))jsonFields+='  "keywords": ["핵심키워드1","핵심키워드2","핵심키워드3"],\n';if(isSelected('risks'))jsonFields+='  "risks": ["리스크1","리스크2"],\n';if(isSelected('followups'))jsonFields+='  "followUps": ["추후진행계획1","추후진행계획2"],\n';if(isSelected('sentiment'))jsonFields+='  "sentiment": {"overall":"positive|neutral|negative|mixed","consensus":0,"engagement":0,"urgency":0,"comment":"분위기 한줄평"},\n';jsonFields=jsonFields.replace(/,\n$/,'\n')+'}';return '당신은 대한민국 대기업 비서실에서 20년 이상 근무한 전문 회의록 작성 전문가입니다.\n아래 선택된 항목만 포함하는 공식 회의록 JSON을 작성하세요.\n선택된 항목: '+sectionList+'\n\n규칙:\n- 결정사항: "~하기로 함" 공식 문체\n- TO-DO LIST: 담당자/기한/우선순위 명확히\n- 추후 진행계획: 구체적 일정/방향성 포함\n- 선택되지 않은 항목의 필드는 JSON에 포함하지 마세요\n- 순수 JSON만 반환 (마크다운 블럭 없이)\n\nJSON 구조:\n'+jsonFields;}
+function parseGeminiJSON(raw){if(!raw)return null;var s=raw.split('```json').join('').split('```').join('').trim();var si=s.indexOf('{');var ei=s.lastIndexOf('}');if(si===-1||ei===-1)return null;s=s.slice(si,ei+1);try{return JSON.parse(s);}catch(e1){}var fixed='';for(var i=0;i<s.length;i++){var c=s[i];if(c===','){var rest='';for(var k=i+1;k<s.length;k++){var w=s[k];if(w===' '||w==='\t'||w==='\n'||w==='\r')continue;rest=w;break;}if(rest==='}'||rest===']')continue;}fixed+=c;}try{return JSON.parse(fixed);}catch(e2){}try{var tr=fixed;while(tr.length&&tr[tr.length-1]===',')tr=tr.slice(0,-1);var stk=[],inStr=false,esc=false,ch;for(var j=0;j<tr.length;j++){ch=tr[j];if(esc){esc=false;continue;}if(ch==='\\'&&inStr){esc=true;continue;}if(ch==='"'){inStr=!inStr;continue;}if(!inStr){if(ch==='{')stk.push('}');else if(ch==='[')stk.push(']');else if(ch==='}'||ch===']')stk.pop();}}while(stk.length)tr+=stk.pop();return JSON.parse(tr);}catch(e3){}return null;}
+async function generateMinutes(){clearError();var transcript=document.getElementById('transcriptText').value.trim();if(!transcript||transcript.length<50){showError('회의 내용을 50자 이상 입력해주세요.');return;}var apiKey=getApiKey();if(!apiKey||!apiKey.startsWith('AIza')){showError('유효한 Gemini API 키를 입력해주세요. (AIza... 형식)');document.getElementById('apiKeyInput').focus();return;}var activeSections=getSelectedSections();if(!activeSections.length){showError('최소 하나 이상의 분석 항목을 선택해주세요.');return;}var btn=document.getElementById('generateBtn');btn.disabled=true;btn.innerHTML='<div class="spinner"></div>&nbsp; 분석 중...';var progressEl=document.getElementById('progressSection');progressEl.style.display='block';setProgress(10,[{label:'텍스트 분석',status:'active'},{label:'섹션 생성',status:'pending'},{label:'검토',status:'pending'},{label:'완성',status:'pending'}]);var meta={title:document.getElementById('meetingTitle').value||'',date:document.getElementById('meetingDate').value||'',department:document.getElementById('department').value||'',type:document.getElementById('meetingType').value||'',attendees:document.getElementById('attendeeInput').value||''};var userMessage='다음 회의 녹취록을 분석하여 선택된 항목만 포함하는 대기업 공식 회의록 JSON을 작성해주세요.\n\n회의 기본 정보:\n- 회의명: '+(meta.title||'(녹취록에서 유추)')+'\n- 날짜: '+(meta.date||'(녹취록에서 유추)')+'\n- 주관부서: '+(meta.department||'(녹취록에서 유추)')+'\n- 회의유형: '+meta.type+'\n- 참석자: '+(meta.attendees||'(녹취록에서 유추)')+'\n- 작성할 항목: '+activeSections.join(', ')+'\n\n회의 녹취록:\n'+transcript+'\n\nJSON만 반환해주세요.';var t1=setTimeout(function(){setProgress(35,[{label:'텍스트 분석',status:'done'},{label:'섹션 생성',status:'active'},{label:'검토',status:'pending'},{label:'완성',status:'pending'}]);},1000);var t2=setTimeout(function(){setProgress(65,[{label:'텍스트 분석',status:'done'},{label:'섹션 생성',status:'done'},{label:'검토',status:'active'},{label:'완성',status:'pending'}]);},3000);function resetBtn(){btn.disabled=false;btn.textContent='회의록 자동 생성';}function diagnoseError(err){var msg=err.message||'';if(msg.indexOf('Failed to fetch')>-1||msg.indexOf('NetworkError')>-1||msg.indexOf('fetch')>-1){return '네트워크 연결 오류입니다.\n① 인터넷 연결 상태 확인\n② 키 테스트 버튼으로 API 키 재확인\n③ 모델 자동 감지 후 다른 모델 선택';}if(msg.indexOf('404')>-1)return '모델을 찾을 수 없습니다. 자동 감지 버튼으로 사용 가능한 모델을 불러온 후 다시 시도해주세요.';if(msg.indexOf('429')>-1)return 'API 요청 한도 초과입니다. 잠시 후 다시 시도해주세요.';if(msg.indexOf('401')>-1||msg.indexOf('403')>-1)return 'API 키가 유효하지 않습니다. 키를 다시 확인해주세요.';return '오류: '+msg;}
+try{var controller=new AbortController();var timeoutId=setTimeout(function(){controller.abort();},60000);var model=document.getElementById('geminiModel').value;var response=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+model+':generateContent?key='+apiKey,{method:'POST',headers:{'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({system_instruction:{parts:[{text:buildSystemPrompt()}]},contents:[{role:'user',parts:[{text:userMessage}]}],generationConfig:{temperature:0.3,maxOutputTokens:8192}})});clearTimeout(timeoutId);var data=await response.json();if(!response.ok)throw new Error('Gemini API 오류 ('+response.status+'): '+(data.error&&data.error.message));var raw=data.candidates&&data.candidates[0]&&data.candidates[0].content&&data.candidates[0].content.parts&&data.candidates[0].content.parts[0]&&data.candidates[0].content.parts[0].text||'';clearTimeout(t1);clearTimeout(t2);setProgress(90,[{label:'텍스트 분석',status:'done'},{label:'섹션 생성',status:'done'},{label:'검토',status:'done'},{label:'완성',status:'active'}]);generatedJSON=parseGeminiJSON(raw);if(!generatedJSON){var retryMsg=userMessage+'\n\n중요: 반드시 순수 JSON만 반환하세요. {로 시작해서 }로 끝나는 JSON만.';var retryRes=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+model+':generateContent?key='+apiKey,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system_instruction:{parts:[{text:buildSystemPrompt()}]},contents:[{role:'user',parts:[{text:retryMsg}]}],generationConfig:{temperature:0.1,maxOutputTokens:8192}})});var retryData=await retryRes.json();var retryRaw=retryData.candidates&&retryData.candidates[0]&&retryData.candidates[0].content&&retryData.candidates[0].content.parts&&retryData.candidates[0].content.parts[0]&&retryData.candidates[0].content.parts[0].text||'';generatedJSON=parseGeminiJSON(retryRaw);if(!generatedJSON)throw new Error('JSON 파싱 실패. 더 짧은 녹취록으로 시도하거나 다른 모델을 선택해주세요.');}setProgress(100,[{label:'텍스트 분석',status:'done'},{label:'섹션 생성',status:'done'},{label:'검토',status:'done'},{label:'완성',status:'done'}]);setTimeout(function(){progressEl.style.display='none';renderResult(generatedJSON);btn.disabled=false;btn.textContent='회의록 재생성';},400);}catch(err){clearTimeout(t1);clearTimeout(t2);progressEl.style.display='none';var msg=(err.name==='AbortError')?'요청 시간이 초과되었습니다 (60초).':diagnoseError(err);showError(msg);resetBtn();}}
+var ATT_COLORS={moss:'#4A6741',sand:'#8B7355',slate:'#3D5A6B',red:'#9B3A2A',ink:'#5A5753'};
+function renderResult(d){var wrap=document.getElementById('resultWrap');wrap.className='result-wrap show fadeIn';var m=d.metadata||{};var now=new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});var attHTML='';if(isSelected('attendees')&&d.attendees&&d.attendees.length){var ckeys=Object.keys(ATT_COLORS);attHTML=d.attendees.map(function(a,i){var ck=a.colorKey||ckeys[i%ckeys.length],c=ATT_COLORS[ck]||ATT_COLORS.ink;var cl={high:'(발언多)',medium:'',low:'(청취)'}[a.contribution]||'';return'<span class="att-chip"><span class="att-dot" style="background:'+c+'"></span>'+a.name+(a.role?' · '+a.role:'')+(cl?' <span style="color:'+c+';font-size:10px;">'+cl+'</span>':'')+'</span>';}).join('');}
+var html='<div class="doc"><div class="doc-head">';html+='<div class="doc-classification">CONFIDENTIAL — INTERNAL USE ONLY</div>';html+='<div class="doc-title">'+(m.title||'회의록')+'</div>';html+='<table class="doc-meta-table">';html+='<tr><td>일시</td><td>'+(m.date||'—')+(m.duration?' &nbsp;(약 '+m.duration+'분)':'')+'</td></tr>';html+='<tr><td>장소</td><td>'+(m.location||'—')+'</td></tr>';html+='<tr><td>주관</td><td>'+(m.department||'—')+'</td></tr>';html+='<tr><td>유형</td><td>'+(m.type||'—')+'</td></tr>';if(attHTML)html+='<tr><td>참석자</td><td><div class="attendee-chips">'+attHTML+'</div></td></tr>';html+='</table></div>';
+var sn=1;function secNum(){var n=sn<10?'0'+sn:''+sn;sn++;return n;}
+if(isSelected('summary')&&d.executiveSummary){var ins=d.keyInsights&&d.keyInsights.length?'<div class="insight-list">'+d.keyInsights.map(function(i){return'<div class="insight-item">'+i+'</div>';}).join('')+'</div>':'';html+='<div class="doc-sec"><div class="doc-sec-title"><span>'+secNum()+'</span> 핵심 요약</div><div class="summary-text">'+d.executiveSummary+'</div>'+ins+'</div>';}
+if(isSelected('agenda')&&d.agenda&&d.agenda.length){html+='<div class="doc-sec"><div class="doc-sec-title"><span>'+secNum()+'</span> 아젠다별 주요 내용</div><div class="agenda-list">';d.agenda.forEach(function(a,i){html+='<div class="agenda-item"><span class="agenda-num">0'+(i+1)+'</span><div class="agenda-content"><h4>'+a.title+'</h4><p>'+a.summary+'</p></div>'+(a.duration?'<span class="agenda-dur">'+a.duration+'min</span>':'')+'</div>';});html+='</div></div>';}
+if(isSelected('decisions')&&d.decisions&&d.decisions.length){html+='<div class="doc-sec"><div class="doc-sec-title"><span>'+secNum()+'</span> 주요 결정사항 ('+d.decisions.length+'건)</div><div class="decision-list">';d.decisions.forEach(function(dec,i){html+='<div class="decision-item"><span class="dec-icon">'+(i<9?'0':'')+(i+1)+'</span>'+dec+'</div>';});html+='</div></div>';}
+if(isSelected('todo')&&d.actionItems&&d.actionItems.length){var pL=function(p){return{high:'긴급',medium:'보통',low:'낮음'}[p]||p;},pC=function(p){return{high:'pri-high',medium:'pri-med',low:'pri-low'}[p]||'pri-low';};html+='<div class="doc-sec"><div class="doc-sec-title"><span>'+secNum()+'</span> TO-DO LIST ('+d.actionItems.length+'건)</div><div style="overflow-x:auto;"><table class="todo-table"><thead><tr><th style="width:4%"></th><th style="width:36%">실행 과제</th><th style="width:14%">담당자</th><th style="width:18%">완료 기한</th><th style="width:10%">우선순위</th><th>비고</th></tr></thead><tbody>';d.actionItems.forEach(function(a){html+='<tr><td><span class="todo-check"></span></td><td style="font-weight:500;">'+a.task+'</td><td><span class="owner-tag">'+(a.owner||'—')+'</span></td><td style="font-size:11px;font-family:var(--mono);color:var(--ink-2);">'+(a.deadline||'—')+'</td><td><span class="pri '+pC(a.priority)+'">'+pL(a.priority)+'</span></td><td style="color:var(--ink-3);font-size:11px;">'+(a.context||'')+'</td></tr>';});html+='</tbody></table></div></div>';}
+if(isSelected('risks')&&d.risks&&d.risks.length){html+='<div class="doc-sec"><div class="doc-sec-title"><span>'+secNum()+'</span> 리스크 및 이슈 ('+d.risks.length+'건)</div><div class="risk-list">';d.risks.forEach(function(r,i){html+='<div class="risk-item"><span class="risk-mark">'+(i<9?'0':'')+(i+1)+'</span>'+r+'</div>';});html+='</div></div>';}
+if(isSelected('context')&&d.meetingContext){var mc=d.meetingContext;html+='<div class="doc-sec"><div class="doc-sec-title"><span>'+secNum()+'</span> 배경 및 목적</div><div style="display:grid;gap:8px;">';if(mc.background)html+='<div style="padding:10px 14px;background:var(--slate-bg);border-left:3px solid var(--slate);font-size:13px;color:var(--ink);line-height:1.7;"><span style="font-size:10px;letter-spacing:1px;color:var(--slate);text-transform:uppercase;display:block;margin-bottom:4px;">배경</span>'+mc.background+'</div>';if(mc.objective)html+='<div style="padding:10px 14px;background:var(--moss-bg);border-left:3px solid var(--moss);font-size:13px;color:var(--ink);line-height:1.7;"><span style="font-size:10px;letter-spacing:1px;color:var(--moss);text-transform:uppercase;display:block;margin-bottom:4px;">목적</span>'+mc.objective+'</div>';if(mc.expectedOutcome)html+='<div style="padding:10px 14px;background:var(--paper-2);border-left:3px solid var(--line-2);font-size:13px;color:var(--ink);line-height:1.7;"><span style="font-size:10px;letter-spacing:1px;color:var(--ink-3);text-transform:uppercase;display:block;margin-bottom:4px;">기대 결과</span>'+mc.expectedOutcome+'</div>';html+='</div></div>';}
+if(isSelected('openissues')&&d.openIssues&&d.openIssues.length){html+='<div class="doc-sec"><div class="doc-sec-title"><span>'+secNum()+'</span> 미결정 사항 ('+d.openIssues.length+'건)</div><div style="display:flex;flex-direction:column;gap:8px;">';d.openIssues.forEach(function(oi,i){html+='<div style="padding:10px 14px;background:#FAFAF8;border:1px solid var(--line);border-left:3px solid #C8A830;"><div style="font-size:13px;font-weight:500;color:var(--ink);margin-bottom:4px;">'+(i<9?'0':'')+(i+1)+'&nbsp;&nbsp;'+oi.issue+'</div>';if(oi.reason)html+='<div style="font-size:12px;color:var(--ink-2);margin-bottom:2px;">미결 이유: '+oi.reason+'</div>';if(oi.nextStep)html+='<div style="font-size:12px;color:var(--moss);">다음 단계: '+oi.nextStep+'</div>';html+='</div>';});html+='</div></div>';}
+if(isSelected('keywords')&&d.keywords&&d.keywords.length){html+='<div class="doc-sec"><div class="doc-sec-title"><span>'+secNum()+'</span> 키워드 태그</div><div style="display:flex;flex-wrap:wrap;gap:8px;">';d.keywords.forEach(function(kw){html+='<span style="padding:5px 14px;background:var(--ink);color:var(--paper);font-size:12px;letter-spacing:0.5px;">#'+kw+'</span>';});html+='</div></div>';}
+if(isSelected('followups')&&d.followUps&&d.followUps.length){html+='<div class="doc-sec"><div class="doc-sec-title"><span>'+secNum()+'</span> 추후 진행계획</div><div class="plan-list">';d.followUps.forEach(function(f,i){html+='<div class="plan-item"><span class="plan-num">'+(i<9?'0':'')+(i+1)+'.</span>'+f+'</div>';});html+='</div></div>';}
+if(isSelected('sentiment')&&d.sentiment){var s=d.sentiment,oL={positive:'긍정적',neutral:'중립',negative:'부정적',mixed:'복합적'}[s.overall]||s.overall;html+='<div class="doc-sec"><div class="doc-sec-title"><span>'+secNum()+'</span> 회의 분위기 분석</div><div class="sentiment-badge">'+oL+'</div><div class="meter-list">';[{l:'합의 수준',v:s.consensus},{l:'참여도',v:s.engagement},{l:'긴급도',v:s.urgency}].forEach(function(it){html+='<div class="meter-row"><span class="meter-label">'+it.l+'</span><div class="meter-track"><div class="meter-fill" style="width:'+(it.v||0)+'%"></div></div><span class="meter-val">'+(it.v||0)+'%</span></div>';});html+='</div>'+(s.comment?'<div class="sentiment-comment">'+s.comment+'</div>':'')+'</div>';}
+html+='<div class="doc-foot"><div class="doc-foot-left">작성일시: '+now+' &nbsp;\u00b7&nbsp; AI 자동 작성 (검토 후 사용)</div><div class="doc-foot-right"><button class="btn-doc" onclick="copyMinutes()">텍스트 복사</button><button class="btn-doc" onclick="window.print()">인쇄/PDF</button><button class="btn-doc primary" id="wordBtn" onclick="downloadWord()">&#8595; Word 다운로드</button><button class="btn-doc" id="notionBtn" onclick="saveToNotion()" style="background:var(--slate-bg);color:var(--slate);border-color:#C8D8E0;">&#8663; 노션에 저장</button></div></div>';
+html+='</div>';wrap.innerHTML=html;wrap.scrollIntoView({behavior:'smooth',block:'start'});}
+function xmlEsc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function makeDocxXml(d,selKeys){var now=new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});var m=d.metadata||{};var W_NS='xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"';var parts=[];function rPr(opts){var o=opts||{};return'<w:rPr><w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/><w:sz w:val="'+(o.sz||22)+'"/><w:szCs w:val="'+(o.sz||22)+'"/><w:color w:val="'+(o.color||'2C2C2A')+'"/>'+(o.bold?'<w:b/><w:bCs/>':'')+(o.italic?'<w:i/><w:iCs/>':'')+'</w:rPr>';}function run(text,opts){return'<w:r>'+rPr(opts)+'<w:t xml:space="preserve">'+xmlEsc(text)+'</w:t></w:r>';}function para(runs,opts){var o=opts||{};var pr='<w:pPr><w:spacing w:before="'+(o.before||60)+'" w:after="'+(o.after||60)+'"/>'+(o.indent?'<w:ind w:left="'+o.indent+'"/>':'')+(o.shading?'<w:shd w:val="clear" w:color="auto" w:fill="'+o.shading+'"/>':'')+(o.borderLeft?'<w:pBdr><w:left w:val="single" w:sz="6" w:space="8" w:color="'+o.borderLeft+'"/></w:pBdr>':'')+(o.borderBottom?'<w:pBdr><w:bottom w:val="single" w:sz="'+o.borderBottomSz+'" w:space="'+(o.borderBottomSpace||2)+'" w:color="'+o.borderBottom+'"/></w:pBdr>':'')+'</w:pPr>';return'<w:p>'+pr+(Array.isArray(runs)?runs.join(''):runs)+'</w:p>';}function blank(){return'<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr></w:p>';}function sectionHeading(label,num){var n=(num<10?'0':'')+num;return para(run(n+'  '+label.toUpperCase(),{sz:18,color:'666666'}),{before:280,after:100,borderBottom:'D8D4C8',borderBottomSz:1,borderBottomSpace:4});}
+parts.push(para(run('CONFIDENTIAL — INTERNAL USE ONLY',{sz:16,color:'AAAAAA'}),{before:0,after:100}));parts.push(para(run(m.title||'회의록',{sz:36,bold:true,color:'2C2C2A'}),{before:0,after:200,borderBottom:'2C2C2A',borderBottomSz:8,borderBottomSpace:4}));parts.push(blank());
+var metaRows=[['일시',(m.date||'—')+(m.duration?' (약 '+m.duration+'분)':'')],['장소',m.location||'—'],['주관',m.department||'—'],['유형',m.type||'—']];if(selKeys.attendees&&d.attendees&&d.attendees.length){metaRows.push(['참석자',d.attendees.map(function(a){return a.name+(a.role?' ('+a.role+')':'');}).join(', ')]);}
+var metaRowsXml=metaRows.map(function(row){return'<w:tr><w:tc><w:tcPr><w:tcW w:w="1400" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F7F5F0"/><w:tcMar><w:top w:w="60" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:left w:w="80" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tcMar><w:tcBorders><w:top w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:left w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:bottom w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:right w:val="none" w:sz="0" w:space="0" w:color="auto"/></w:tcBorders></w:tcPr><w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr>'+run(row[0].toUpperCase(),{sz:18,color:'8A8780'})+'</w:p></w:tc><w:tc><w:tcPr><w:tcW w:w="8746" w:type="dxa"/><w:tcMar><w:top w:w="60" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:left w:w="80" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tcMar><w:tcBorders><w:top w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:left w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:bottom w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:right w:val="none" w:sz="0" w:space="0" w:color="auto"/></w:tcBorders></w:tcPr><w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr>'+run(row[1],{sz:20,color:'2C2C2A'})+'</w:p></w:tc></w:tr>';}).join('');
+parts.push('<w:tbl><w:tblPr><w:tblW w:w="10146" w:type="dxa"/><w:tblBorders><w:top w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:left w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:bottom w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:right w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:insideH w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:insideV w:val="none" w:sz="0" w:space="0" w:color="auto"/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w="1400"/><w:gridCol w:w="8746"/></w:tblGrid>'+metaRowsXml+'</w:tbl>');parts.push(blank());
+var sn=1;if(selKeys.summary&&d.executiveSummary){parts.push(sectionHeading('핵심 요약',sn++));parts.push(para(run(d.executiveSummary,{sz:22}),{before:80,after:80,indent:280,borderLeft:'2C2C2A'}));if(d.keyInsights&&d.keyInsights.length){d.keyInsights.forEach(function(ins){parts.push(para(run('\u2192  '+ins,{sz:20,color:'5A5753'}),{before:40,after:40,shading:'EFECE5',indent:120}));});}parts.push(blank());}
+if(selKeys.agenda&&d.agenda&&d.agenda.length){parts.push(sectionHeading('아젠다별 주요 내용',sn++));d.agenda.forEach(function(a,i){parts.push(para(run('0'+(i+1)+'  ',{sz:18,color:'AAAAAA'})+run(a.title,{sz:22,bold:true})+(a.duration?run('  ('+a.duration+'min)',{sz:18,color:'AAAAAA'}):''),{before:160,after:60}));parts.push(para(run(a.summary,{sz:20,color:'5A5753'}),{before:0,after:80,indent:280}));});parts.push(blank());}
+if(selKeys.decisions&&d.decisions&&d.decisions.length){parts.push(sectionHeading('주요 결정사항 ('+d.decisions.length+'건)',sn++));d.decisions.forEach(function(dec,i){parts.push(para(run((i<9?'0':'')+(i+1)+'  ',{sz:18,color:'C8B89A'})+run(dec,{sz:22}),{before:60,after:60,shading:'F2EDE3',borderLeft:'C8A87A',indent:160}));});parts.push(blank());}
+if(selKeys.todo&&d.actionItems&&d.actionItems.length){parts.push(sectionHeading('TO-DO LIST ('+d.actionItems.length+'건)',sn++));var tdW=[280,3800,1400,1900,1000,1766];var tdHdrs=['','실행 과제','담당자','완료 기한','우선순위','비고'];var pMap={high:'긴급',medium:'보통',low:'낮음'};var pColor={high:'9B3A2A',medium:'8B7355',low:'4A6741'};function noBorderCell(content,w,fillColor){return'<w:tc><w:tcPr><w:tcW w:w="'+w+'" w:type="dxa"/>'+(fillColor?'<w:shd w:val="clear" w:color="auto" w:fill="'+fillColor+'"/>':'')+'<w:tcMar><w:top w:w="60" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:left w:w="80" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tcMar><w:tcBorders><w:top w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:left w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:bottom w:val="single" w:sz="1" w:space="0" w:color="D8D4C8"/><w:right w:val="none" w:sz="0" w:space="0" w:color="auto"/></w:tcBorders></w:tcPr>'+content+'</w:tc>';}function cellP(runs){return'<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr>'+(Array.isArray(runs)?runs.join(''):runs)+'</w:p>';}var headerRow='<w:tr><w:trPr><w:tblHeader/></w:trPr>'+tdHdrs.map(function(h,i){return'<w:tc><w:tcPr><w:tcW w:w="'+tdW[i]+'" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="EFECE5"/><w:tcMar><w:top w:w="60" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:left w:w="80" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tcMar><w:tcBorders><w:top w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:left w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="2C2C2A"/><w:right w:val="none" w:sz="0" w:space="0" w:color="auto"/></w:tcBorders></w:tcPr>'+cellP(run(h,{sz:18,bold:true,color:'8A8780'}))+'</w:tc>';}).join('')+'</w:tr>';var dataRows=d.actionItems.map(function(a){var pr=pMap[a.priority]||a.priority||'—';var pc=pColor[a.priority]||'8A8780';return'<w:tr>'+noBorderCell(cellP(run('\u25a1',{sz:20,color:'C8C3B5'})),tdW[0])+noBorderCell(cellP(run(a.task||'',{sz:20,bold:true})),tdW[1])+noBorderCell(cellP(run(a.owner||'—',{sz:19,color:'3D5A6B'})),tdW[2])+noBorderCell(cellP(run(a.deadline||'—',{sz:18,color:'5A5753'})),tdW[3])+noBorderCell(cellP(run(pr,{sz:18,color:pc})),tdW[4])+noBorderCell(cellP(run(a.context||'',{sz:18,color:'8A8780'})),tdW[5])+'</w:tr>';}).join('');parts.push('<w:tbl><w:tblPr><w:tblW w:w="10146" w:type="dxa"/><w:tblBorders><w:top w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:left w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:bottom w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:right w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:insideH w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:insideV w:val="none" w:sz="0" w:space="0" w:color="auto"/></w:tblBorders></w:tblPr><w:tblGrid>'+tdW.map(function(w){return'<w:gridCol w:w="'+w+'"/>';}).join('')+'</w:tblGrid>'+headerRow+dataRows+'</w:tbl>');parts.push(blank());}
+if(selKeys.risks&&d.risks&&d.risks.length){parts.push(sectionHeading('리스크 및 이슈 ('+d.risks.length+'건)',sn++));d.risks.forEach(function(r,i){parts.push(para(run((i<9?'0':'')+(i+1)+'  ',{sz:18,color:'E8C4BC'})+run(r,{sz:21}),{before:60,after:60,shading:'F5EDE9',borderLeft:'C87060',indent:160}));});parts.push(blank());}
+if(selKeys.followups&&d.followUps&&d.followUps.length){parts.push(sectionHeading('추후 진행계획',sn++));d.followUps.forEach(function(f,i){parts.push(para(run((i<9?'0':'')+(i+1)+'.  ',{sz:18,color:'AAAAAA'})+run(f,{sz:22}),{before:80,after:80}));});parts.push(blank());}
+if(selKeys.sentiment&&d.sentiment){var sv=d.sentiment;var oMap={positive:'긍정적',neutral:'중립',negative:'부정적',mixed:'복합적'};parts.push(sectionHeading('회의 분위기 분석',sn++));parts.push(para(run('전반적 분위기: ',{sz:20,color:'8A8780'})+run(oMap[sv.overall]||sv.overall,{sz:20,bold:true}),{before:80,after:80}));parts.push(para(run('합의 수준: '+(sv.consensus||0)+'%',{sz:20}),{before:40,after:40}));parts.push(para(run('참여도: '+(sv.engagement||0)+'%',{sz:20}),{before:40,after:40}));parts.push(para(run('긴급도: '+(sv.urgency||0)+'%',{sz:20}),{before:40,after:40}));if(sv.comment)parts.push(para(run('"'+sv.comment+'"',{sz:20,italic:true,color:'8A8780'}),{before:80,after:0,indent:280}));parts.push(blank());}
+parts.push(para(run('작성일시: '+now+' | AI 자동 작성 (검토 후 사용)',{sz:18,color:'AAAAAA'}),{before:160,after:0,borderBottom:'D8D4C8',borderBottomSz:1,borderBottomSpace:4}));
+var bodyContent=parts.join('\n');var sectPr='<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1080" w:right="1080" w:bottom="1080" w:left="1080" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr>';return'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document '+W_NS+'><w:body>'+bodyContent+sectPr+'</w:body></w:document>';}
+async function downloadWord(){if(!generatedJSON)return;var btn=document.getElementById('wordBtn');if(typeof JSZip==='undefined'){btn.textContent='JSZip 로딩 실패';return;}btn.textContent='생성 중...';btn.disabled=true;try{var docXml=makeDocxXml(generatedJSON,selectedKeys);var contentTypes='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>';var rootRels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>';var wordRels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>';var zip=new JSZip();zip.file('[Content_Types].xml',contentTypes);zip.file('_rels/.rels',rootRels);zip.file('word/document.xml',docXml);zip.file('word/_rels/document.xml.rels',wordRels);var blob=await zip.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',compression:'DEFLATE'});var url=URL.createObjectURL(blob);var a=document.createElement('a');var title=(generatedJSON.metadata&&generatedJSON.metadata.title)||'회의록';a.href=url;a.download=title+'_'+new Date().toISOString().slice(0,10)+'.docx';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);btn.innerHTML='\u2713 다운로드 완료';btn.disabled=false;setTimeout(function(){btn.innerHTML='&#8595; Word 다운로드';},2500);}catch(err){btn.textContent='오류: '+err.message;btn.disabled=false;setTimeout(function(){btn.innerHTML='&#8595; Word 다운로드';},3000);}}
+function saveNotionKey(){var v=cleanKey(document.getElementById('notionKeyInput').value);document.getElementById('notionKeyInput').value=v;if(v)localStorage.setItem('minutesai_notionkey',v);var el=document.getElementById('notionKeyStatus');if(v&&v.length>10){el.textContent='✓ 키 형식 확인됨';el.style.color='#4A6741';}else if(v){el.textContent='⚠ 키를 다시 확인해주세요';el.style.color='#8B7355';}else{el.textContent='';}}
+function toggleNotionKeyVisibility(){var inp=document.getElementById('notionKeyInput'),btn=document.getElementById('toggleNotionBtn');var isHidden=inp.style.webkitTextSecurity==='disc'||inp.style.webkitTextSecurity==='';if(isHidden){inp.style.webkitTextSecurity='none';inp.style.textSecurity='none';btn.textContent='숨기기';}else{inp.style.webkitTextSecurity='disc';inp.style.textSecurity='disc';btn.textContent='보기';}}
+function getNotionKey(){return cleanKey(document.getElementById('notionKeyInput').value);}
+async function testNotionKey(){var key=getNotionKey(),diag=document.getElementById('notionKeyDiag'),btn=document.getElementById('testNotionBtn');if(!key){diag.style.display='block';diag.textContent='노션 API 키를 먼저 입력해주세요.';return;}btn.textContent='테스트 중...';btn.disabled=true;diag.style.display='block';diag.style.color='var(--ink-3)';diag.textContent='노션 연결 중...';try{var res=await fetch('https://notion-proxy.skknjw.workers.dev/v1/users/me',{headers:{'Authorization':'Bearer '+key,'Notion-Version':'2022-06-28'}});var data=await res.json();if(res.ok){diag.textContent='✓ 연결 성공! ('+(data.name||data.bot&&data.bot.owner&&data.bot.owner.user&&data.bot.owner.user.name||'연동됨')+')';diag.style.color='#4A6741';}else{diag.textContent='✗ '+res.status+': '+(data.message||JSON.stringify(data));diag.style.color='#9B3A2A';}}catch(e){diag.textContent='✗ 오류: '+e.message;diag.style.color='#9B3A2A';}btn.textContent='연결 테스트';btn.disabled=false;}
+async function saveToNotion(){if(!generatedJSON)return;var notionKey=getNotionKey();if(!notionKey||notionKey.length<10){alert('노션 API 키를 04번 설정 하단 Notion 연동 칸에 입력해주세요.');return;}var btn=document.getElementById('notionBtn');btn.textContent='저장 중...';btn.disabled=true;var d=generatedJSON,m=d.metadata||{};var DATABASE_ID=getNotionDbId();var contentParts=[];if(d.executiveSummary)contentParts.push('【핵심 요약】\n'+d.executiveSummary);if(d.decisions&&d.decisions.length)contentParts.push('【주요 결정사항】\n'+d.decisions.map(function(x,i){return(i+1)+'. '+x;}).join('\n'));if(d.actionItems&&d.actionItems.length)contentParts.push('【TO-DO LIST】\n'+d.actionItems.map(function(a){return'□ ['+a.owner+'] '+a.task+' (기한: '+a.deadline+')';}).join('\n'));if(d.followUps&&d.followUps.length)contentParts.push('【추후 진행계획】\n'+d.followUps.map(function(x,i){return(i+1)+'. '+x;}).join('\n'));if(d.risks&&d.risks.length)contentParts.push('【리스크/이슈】\n'+d.risks.map(function(x,i){return(i+1)+'. '+x;}).join('\n'));var fullContent=contentParts.join('\n\n');var typeMap={'정기회의':'주간 회의','주간회의':'주간 회의','임원회의':'임원회의','상품회의':'상품회의','S&OP':'S&OP','scm':'scm팀장회의'};var rawType=(m.type||'').trim();var notionType=typeMap[rawType]||null;var properties={'Name':{title:[{text:{content:m.title||'회의록'}}]},'회의내용':{rich_text:[{text:{content:String(fullContent||'').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'').slice(0,1990)}}]}};if(notionType){properties['회의 유형']={select:{name:notionType}};}var blocks=[];function safe(t){return String(t||'').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'').slice(0,1990);}function heading3(text){return{object:'block',type:'heading_3',heading_3:{rich_text:[{type:'text',text:{content:safe(text)}}]}};}function paraBlock(text){return{object:'block',type:'paragraph',paragraph:{rich_text:[{type:'text',text:{content:safe(text)}}]}};}function divider(){return{object:'block',type:'divider',divider:{}};}function callout(text,emoji){return{object:'block',type:'callout',callout:{icon:{type:'emoji',emoji:emoji||'📌'},rich_text:[{type:'text',text:{content:safe(text)}}]}};}function bullet(text){return{object:'block',type:'bulleted_list_item',bulleted_list_item:{rich_text:[{type:'text',text:{content:safe(text)}}]}};}
+blocks.push(callout('일시: '+(m.date||'—')+(m.duration?' (약 '+m.duration+'분)':'')+'\n주관: '+(m.department||'—')+'\n유형: '+(m.type||'—'),'📋'));blocks.push(divider());
+if(isSelected('summary')&&d.executiveSummary){blocks.push(heading3('핵심 요약'));blocks.push(paraBlock(d.executiveSummary));if(d.keyInsights&&d.keyInsights.length)d.keyInsights.forEach(function(i){blocks.push(bullet('→ '+i));});blocks.push(divider());}
+if(isSelected('decisions')&&d.decisions&&d.decisions.length){blocks.push(heading3('주요 결정사항'));d.decisions.forEach(function(dec,i){blocks.push(bullet((i+1)+'. '+dec));});blocks.push(divider());}
+if(isSelected('todo')&&d.actionItems&&d.actionItems.length){blocks.push(heading3('TO-DO LIST'));d.actionItems.forEach(function(a){blocks.push(bullet('□ ['+a.owner+'] '+a.task+' — 기한: '+a.deadline+' / 우선순위: '+({high:'긴급',medium:'보통',low:'낮음'}[a.priority]||a.priority)));});blocks.push(divider());}
+if(isSelected('risks')&&d.risks&&d.risks.length){blocks.push(heading3('리스크 및 이슈'));d.risks.forEach(function(r,i){blocks.push(bullet((i+1)+'. '+r));});blocks.push(divider());}
+if(isSelected('followups')&&d.followUps&&d.followUps.length){blocks.push(heading3('추후 진행계획'));d.followUps.forEach(function(f,i){blocks.push(bullet((i+1)+'. '+f));});blocks.push(divider());}
+if(isSelected('context')&&d.meetingContext){var mc=d.meetingContext;blocks.push(heading3('배경 및 목적'));if(mc.background)blocks.push(paraBlock('배경: '+mc.background));if(mc.objective)blocks.push(paraBlock('목적: '+mc.objective));if(mc.expectedOutcome)blocks.push(paraBlock('기대 결과: '+mc.expectedOutcome));blocks.push(divider());}
+if(isSelected('openissues')&&d.openIssues&&d.openIssues.length){blocks.push(heading3('미결정 사항'));d.openIssues.forEach(function(oi,i){blocks.push(bullet((i+1)+'. '+oi.issue+(oi.nextStep?' → '+oi.nextStep:'')));});blocks.push(divider());}
+if(isSelected('keywords')&&d.keywords&&d.keywords.length){blocks.push(heading3('키워드 태그'));blocks.push(paraBlock(d.keywords.map(function(k){return'#'+k;}).join('  ')));}
+if(isSelected('sentiment')&&d.sentiment){var sv=d.sentiment,oM={positive:'긍정적',neutral:'중립',negative:'부정적',mixed:'복합적'};blocks.push(heading3('회의 분위기'));blocks.push(paraBlock('전반적 분위기: '+(oM[sv.overall]||sv.overall)+' | 합의 수준: '+(sv.consensus||0)+'% | 참여도: '+(sv.engagement||0)+'% | 긴급도: '+(sv.urgency||0)+'%'));if(sv.comment)blocks.push(paraBlock('"'+sv.comment+'"'));}
+try{var res=await fetch('https://notion-proxy.skknjw.workers.dev/v1/pages',{method:'POST',headers:{'Authorization':'Bearer '+notionKey,'Content-Type':'application/json','Notion-Version':'2022-06-28'},body:JSON.stringify({parent:{database_id:DATABASE_ID},properties:properties,children:blocks.slice(0,100)})});var result=await res.json();if(res.ok){btn.textContent='✓ 노션 저장 완료!';btn.disabled=false;setTimeout(function(){btn.innerHTML='&#8663; 노션에 저장';},3000);if(result.url){var link=document.createElement('a');link.href=result.url;link.target='_blank';link.textContent='노션에서 열기 →';link.style.cssText='display:block;margin-top:8px;font-size:11px;color:var(--slate);text-decoration:none;text-align:right;';var footer=document.querySelector('.doc-foot-right');if(footer&&!document.getElementById('notionOpenLink')){link.id='notionOpenLink';footer.appendChild(link);}}}else{var msg=result.message||result.code||JSON.stringify(result).slice(0,200);if(res.status===401||res.status===403)msg='API 키를 확인하고, 노션 DB에 통합이 연결되었는지 확인해주세요.';if(res.status===400)msg='데이터 형식 오류: '+msg;btn.textContent='\u2717 오류: '+msg.slice(0,60);btn.disabled=false;setTimeout(function(){btn.innerHTML='&#8663; 노션에 저장';},4000);}}catch(e){btn.textContent='✗ '+e.message.slice(0,40);btn.disabled=false;setTimeout(function(){btn.innerHTML='&#8663; 노션에 저장';},4000);}}
+function copyMinutes(){if(!generatedJSON)return;var d=generatedJSON,t='【회의록】\n';if(d.metadata){if(d.metadata.title)t+='■ 회의명: '+d.metadata.title+'\n';if(d.metadata.date)t+='■ 일시: '+d.metadata.date+'\n';if(d.metadata.department)t+='■ 주관: '+d.metadata.department+'\n';}t+='\n';if(isSelected('summary')&&d.executiveSummary)t+='▶ 핵심 요약\n'+d.executiveSummary+'\n\n';if(isSelected('decisions')&&d.decisions&&d.decisions.length)t+='▶ 주요 결정사항\n'+d.decisions.map(function(x,i){return(i+1)+'. '+x;}).join('\n')+'\n\n';if(isSelected('todo')&&d.actionItems&&d.actionItems.length)t+='▶ TO-DO LIST\n'+d.actionItems.map(function(a){return'\u25a1 ['+a.owner+'] '+a.task+' (기한: '+a.deadline+')';}).join('\n')+'\n\n';if(isSelected('followups')&&d.followUps&&d.followUps.length)t+='▶ 추후 진행계획\n'+d.followUps.map(function(x,i){return(i+1)+'. '+x;}).join('\n')+'\n';navigator.clipboard.writeText(t).then(function(){alert('회의록이 클립보드에 복사되었습니다.');});}
+var zone=document.getElementById('uploadZone');zone.addEventListener('dragover',function(e){e.preventDefault();zone.classList.add('drag-over');});zone.addEventListener('dragleave',function(){zone.classList.remove('drag-over');});zone.addEventListener('drop',function(e){e.preventDefault();zone.classList.remove('drag-over');var file=e.dataTransfer.files[0];if(file){var dt=new DataTransfer();dt.items.add(file);document.getElementById('fileInput').files=dt.files;handleFileUpload({target:{files:[file]}});}});
 
-window.addEventListener('load', function() {
-  // 브라우저 자동완성 방지: 먼저 빈값으로 초기화 후 localStorage 값으로 복원
-  var gInp = document.getElementById('apiKeyInput');
-  var nInp = document.getElementById('notionKeyInput');
-  if (gInp) gInp.value = '';
-  if (nInp) nInp.value = '';
-  setTimeout(function() {
-    var saved = cleanKey(localStorage.getItem('minutesai_apikey') || '');
-    if (saved && gInp) { gInp.value = saved; updateKeyStatus(saved); }
-    var nk = cleanKey(localStorage.getItem('minutesai_notionkey') || '');
-    if (nk && nInp) { nInp.value = nk; saveNotionKey(); }
-    var dbId = localStorage.getItem('minutesai_notiondbid') || '';
-    if (dbId) { var dbInp = document.getElementById('notionDbId'); if (dbInp) dbInp.value = dbId; }
-  }, 100);
-});
-
-function cleanKey(v) { return (v||'').replace(/[\s\n\r\t]/g,''); }
-function saveApiKey() {
-  var v = cleanKey(document.getElementById('apiKeyInput').value);
-  document.getElementById('apiKeyInput').value = v;
-  if (v) localStorage.setItem('minutesai_apikey', v);
-  updateKeyStatus(v);
-}
-function updateKeyStatus(v) {
-  var el = document.getElementById('keyStatus'); if (!el) return;
-  if (v && v.startsWith('AIza') && v.length >= 35) { el.textContent = '\u2713 확인됨'; el.style.color = '#4A6741'; }
-  else if (v) { el.textContent = '\u26a0 AIza... 형식 확인'; el.style.color = '#8B7355'; }
-  else { el.textContent = ''; }
-}
-function toggleApiKeyVisibility() {
-  var inp = document.getElementById('apiKeyInput'), btn = document.getElementById('toggleApiBtn');
-  var isHidden = inp.style.webkitTextSecurity === 'disc' || inp.style.webkitTextSecurity === '';
-  if (isHidden) {
-    inp.style.webkitTextSecurity = 'none';
-    inp.style.textSecurity = 'none';
-    btn.textContent = '숨기기';
-  } else {
-    inp.style.webkitTextSecurity = 'disc';
-    inp.style.textSecurity = 'disc';
-    btn.textContent = '보기';
-  }
-}
-function getApiKey() { return cleanKey(document.getElementById('apiKeyInput').value); }
-function toggleOption(el) {
-  el.classList.toggle('active');
-  selectedKeys[el.getAttribute('data-key')] = el.classList.contains('active');
-}
-function isSelected(key) { return !!selectedKeys[key]; }
-function getSelectedSections() {
-  var map = {
-    summary: '핵심 요약', attendees: '참석자 분석', agenda: '아젠다별 요약',
-    decisions: '주요 결정사항', todo: 'TO-DO LIST', risks: '리스크/이슈',
-    followups: '추후 진행계획', sentiment: '회의 분위기',
-    context: '배경 및 목적', openissues: '미결정 사항', keywords: '키워드 태그'
-  };
-  return Object.keys(selectedKeys).filter(function(k){ return selectedKeys[k]; }).map(function(k){ return map[k]; });
-}
-
-async function testApiKey() {
-  var key = getApiKey(), diag = document.getElementById('keyDiag'), btn = document.getElementById('testKeyBtn');
-  if (!key) { diag.style.display='block'; diag.textContent='키를 먼저 입력해주세요.'; return; }
-  btn.textContent = '테스트 중...'; btn.disabled = true;
-  diag.style.display='block'; diag.style.color='var(--ink-3)';
-  diag.textContent = '길이: '+key.length+'자 | '+key.slice(0,8)+'... | 연결 중...';
-  try {
-    var model = document.getElementById('geminiModel').value;
-    var res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+model+':generateContent?key='+key,{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({contents:[{role:'user',parts:[{text:'안녕'}]}],generationConfig:{maxOutputTokens:5}})
-    });
-    var data = await res.json();
-    if (res.ok) { diag.textContent = '\u2713 '+model+' 연결 성공 (길이: '+key.length+'자)'; diag.style.color='#4A6741'; }
-    else { diag.textContent = '\u2717 '+res.status+': '+(data.error&&data.error.message)+' | 길이: '+key.length+'자'; diag.style.color='#9B3A2A'; }
-  } catch(e) { diag.textContent = '\u2717 네트워크 오류: '+e.message; diag.style.color='#9B3A2A'; }
-  btn.textContent = '키 테스트'; btn.disabled = false;
-}
-async function detectModels() {
-  var key = getApiKey(), diag = document.getElementById('keyDiag'), btn = document.getElementById('detectBtn');
-  if (!key) { diag.style.display='block'; diag.textContent='키를 먼저 입력해주세요.'; return; }
-  btn.textContent = '감지 중...'; btn.disabled = true;
-  diag.style.display='block'; diag.style.color='var(--ink-3)'; diag.textContent='모델 목록 조회 중...';
-  try {
-    var res = await fetch('https://generativelanguage.googleapis.com/v1beta/models?key='+key);
-    var data = await res.json();
-    if (!res.ok) throw new Error((data.error&&data.error.message)||res.status);
-    var models = (data.models||[]).filter(function(m){return m.supportedGenerationMethods&&m.supportedGenerationMethods.indexOf('generateContent')>-1;}).map(function(m){return m.name.replace('models/','');}).filter(function(n){return n.indexOf('gemini')===0;});
-    if (!models.length) throw new Error('사용 가능한 모델 없음');
-    var sel = document.getElementById('geminiModel');
-    sel.innerHTML = models.map(function(m){return '<option value="'+m+'">'+m+'</option>';}).join('');
-    diag.textContent = '\u2713 '+models.length+'개 모델 감지 완료'; diag.style.color='#4A6741';
-  } catch(e) { diag.textContent = '\u2717 감지 실패: '+e.message; diag.style.color='#9B3A2A'; }
-  btn.textContent = '자동 감지'; btn.disabled = false;
-}
-function updateCharCount() {
-  document.getElementById('charCount').textContent = document.getElementById('transcriptText').value.length.toLocaleString()+'자';
-}
-function handleFileUpload(e) {
-  var file = e.target.files[0]; if (!file) return;
-  var reader = new FileReader();
-  reader.onload = function(ev) {
-    uploadedContent = ev.target.result;
-    document.getElementById('transcriptText').value = uploadedContent;
-    updateCharCount();
-    var kb = (file.size/1024).toFixed(1);
-    document.getElementById('fileAttached').innerHTML = '<div class="file-ok"><div><div class="file-ok-name">'+file.name+'</div><div class="file-ok-size">'+kb+'KB \u00b7 로드 완료</div></div><button class="file-remove" onclick="removeFile()">\u00d7</button></div>';
-    document.getElementById('fileAttached').style.display = 'block';
-  };
-  reader.readAsText(file,'UTF-8');
-}
-function removeFile() {
-  uploadedContent = ''; document.getElementById('fileAttached').style.display='none';
-  document.getElementById('fileInput').value=''; document.getElementById('transcriptText').value=''; updateCharCount();
-}
-function setProgress(pct, steps) {
-  document.getElementById('progressBar').style.width = pct+'%';
-  if (steps) document.getElementById('progressSteps').innerHTML = steps.map(function(s){return '<span class="ps '+s.status+'">'+s.label+'</span>';}).join('');
-}
-function showError(msg) { var b=document.getElementById('errorBox'); b.style.display='block'; b.textContent=msg; }
-function saveNotionDbId() {
-  var v = (document.getElementById('notionDbId').value||'').replace(/-/g,'').trim();
-  if (v) localStorage.setItem('minutesai_notiondbid', v);
-}
-function getNotionDbId() {
-  var inp = (document.getElementById('notionDbId').value||'').replace(/-/g,'').trim();
-  if (inp) return inp;
-  return localStorage.getItem('minutesai_notiondbid') || 'a34b6587d2368285b88781cb8cba1bb8';
-}
-function clearGeminiKey() {
-  if (!confirm('저장된 Gemini API 키를 삭제할까요?')) return;
-  localStorage.removeItem('minutesai_apikey');
-  var inp = document.getElementById('apiKeyInput');
-  inp.value = '';
-  inp.setAttribute('value', '');
-  inp.removeAttribute('value');
-  inp.style.webkitTextSecurity = 'disc';
-  inp.style.textSecurity = 'disc';
-  var el = document.getElementById('keyStatus');
-  if (el) { el.textContent = '키가 삭제되었습니다'; el.style.color = '#9B3A2A'; setTimeout(function(){ el.textContent=''; }, 2000); }
-  var diag = document.getElementById('keyDiag');
-  if (diag) { diag.style.display='none'; diag.textContent=''; }
-}
-function clearNotionKey() {
-  if (!confirm('저장된 Notion API 키를 삭제할까요?')) return;
-  localStorage.removeItem('minutesai_notionkey');
-  var inp = document.getElementById('notionKeyInput');
-  inp.value = '';
-  inp.setAttribute('value', '');
-  inp.removeAttribute('value');
-  inp.style.webkitTextSecurity = 'disc';
-  inp.style.textSecurity = 'disc';
-  var el = document.getElementById('notionKeyStatus');
-  if (el) { el.textContent = '키가 삭제되었습니다'; el.style.color = '#9B3A2A'; setTimeout(function(){ el.textContent=''; }, 2000); }
-  var diag = document.getElementById('notionKeyDiag');
-  if (diag) { diag.style.display='none'; diag.textContent=''; }
-}
-function clearError() { document.getElementById('errorBox').style.display='none'; }
-
-function buildSystemPrompt() {
-  var sections = getSelectedSections();
-  var sectionList = sections.join(', ');
-  var jsonFields = '{\n  "metadata": {"title":"회의명","date":"날짜","duration":"소요시간(분)","type":"회의유형","department":"주관부서","totalAttendees":숫자,"location":"장소"},\n';
-  if (isSelected('summary')) jsonFields += '  "executiveSummary": "경영진 보고용 핵심 요약 (3~5문장, ~함. 체)",\n  "keyInsights": ["인사이트1","인사이트2"],\n';
-  if (isSelected('attendees')) jsonFields += '  "attendees": [{"name":"이름","role":"직책","contribution":"high|medium|low","colorKey":"moss|sand|slate|red"}],\n';
-  if (isSelected('agenda')) jsonFields += '  "agenda": [{"title":"아젠다","summary":"핵심내용","duration":"분"}],\n';
-  if (isSelected('decisions')) jsonFields += '  "decisions": ["결정사항1 (~하기로 함)","결정사항2"],\n';
-  if (isSelected('todo')) jsonFields += '  "actionItems": [{"task":"실행과제","owner":"담당자","deadline":"기한","priority":"high|medium|low","context":"비고"}],\n';
-  if (isSelected('context')) jsonFields += '  "meetingContext": {"background":"이 회의가 열린 배경 (무슨 문제/상황에서 비롯됐는지)","objective":"이 회의의 목적 (무엇을 달성하려 했는지)","expectedOutcome":"기대했던 결과"},\n';
-  if (isSelected('openissues')) jsonFields += '  "openIssues": [{"issue":"미결정 사항 내용","reason":"결론 미도출 이유","nextStep":"다음 단계 또는 차기 논의 시점"}],\n';
-  if (isSelected('keywords')) jsonFields += '  "keywords": ["핵심키워드1","핵심키워드2","핵심키워드3"],\n';
-  if (isSelected('risks')) jsonFields += '  "risks": ["리스크1","리스크2"],\n';
-  if (isSelected('followups')) jsonFields += '  "followUps": ["추후진행계획1","추후진행계획2"],\n';
-  if (isSelected('sentiment')) jsonFields += '  "sentiment": {"overall":"positive|neutral|negative|mixed","consensus":0,"engagement":0,"urgency":0,"comment":"분위기 한줄평"},\n';
-  jsonFields = jsonFields.replace(/,\n$/, '\n') + '}';
-  return '당신은 대한민국 대기업 비서실에서 20년 이상 근무한 전문 회의록 작성 전문가입니다.\n아래 선택된 항목만 포함하는 공식 회의록 JSON을 작성하세요.\n선택된 항목: ' + sectionList + '\n\n규칙:\n- 결정사항: "~하기로 함" 공식 문체\n- TO-DO LIST: 담당자/기한/우선순위 명확히\n- 추후 진행계획: 구체적 일정/방향성 포함\n- 선택되지 않은 항목의 필드는 JSON에 포함하지 마세요\n- 순수 JSON만 반환 (마크다운 블럭 없이)\n\nJSON 구조:\n' + jsonFields;
-}
-
-function parseGeminiJSON(raw) {
-  if (!raw) return null;
-  var s = raw.split('```json').join('').split('```').join('').trim();
-  var si = s.indexOf('{');
-  var ei = s.lastIndexOf('}');
-  if (si === -1 || ei === -1) return null;
-  s = s.slice(si, ei + 1);
-  try { return JSON.parse(s); } catch(e1) {}
-  var fixed = '';
-  for (var i = 0; i < s.length; i++) {
-    var c = s[i];
-    if (c === ',') {
-      var rest = '';
-      for (var k = i+1; k < s.length; k++) {
-        var w = s[k];
-        if (w === ' ' || w === '\t' || w === '\n' || w === '\r') continue;
-        rest = w; break;
-      }
-      if (rest === '}' || rest === ']') continue;
-    }
-    fixed += c;
-  }
-  try { return JSON.parse(fixed); } catch(e2) {}
-  try {
-    var tr = fixed;
-    while (tr.length && tr[tr.length-1] === ',') tr = tr.slice(0,-1);
-    var stk = [], inStr = false, esc = false, ch;
-    for (var j = 0; j < tr.length; j++) {
-      ch = tr[j];
-      if (esc) { esc = false; continue; }
-      if (ch === '\\' && inStr) { esc = true; continue; }
-      if (ch === '"') { inStr = !inStr; continue; }
-      if (!inStr) {
-        if (ch === '{') stk.push('}');
-        else if (ch === '[') stk.push(']');
-        else if (ch === '}' || ch === ']') stk.pop();
-      }
-    }
-    while (stk.length) tr += stk.pop();
-    return JSON.parse(tr);
-  } catch(e3) {}
-  return null;
-}
-
-async function generateMinutes() {
-  clearError();
-  var transcript = document.getElementById('transcriptText').value.trim();
-  if (!transcript||transcript.length<50) { showError('회의 내용을 50자 이상 입력해주세요.'); return; }
-  var apiKey = getApiKey();
-  if (!apiKey||!apiKey.startsWith('AIza')) { showError('유효한 Gemini API 키를 입력해주세요. (AIza... 형식)'); document.getElementById('apiKeyInput').focus(); return; }
-  var activeSections = getSelectedSections();
-  if (!activeSections.length) { showError('최소 하나 이상의 분석 항목을 선택해주세요.'); return; }
-
-  var btn = document.getElementById('generateBtn');
-  btn.disabled = true; btn.innerHTML = '<div class="spinner"></div>&nbsp; 분석 중...';
-  var progressEl = document.getElementById('progressSection');
-  progressEl.style.display = 'block';
-  setProgress(10,[{label:'텍스트 분석',status:'active'},{label:'섹션 생성',status:'pending'},{label:'검토',status:'pending'},{label:'완성',status:'pending'}]);
-
-  var meta = {
-    title: document.getElementById('meetingTitle').value||'',
-    date: document.getElementById('meetingDate').value||'',
-    department: document.getElementById('department').value||'',
-    type: document.getElementById('meetingType').value||'',
-    attendees: document.getElementById('attendeeInput').value||''
-  };
-  var userMessage = '다음 회의 녹취록을 분석하여 선택된 항목만 포함하는 대기업 공식 회의록 JSON을 작성해주세요.\n\n회의 기본 정보:\n- 회의명: '+(meta.title||'(녹취록에서 유추)')+'\n- 날짜: '+(meta.date||'(녹취록에서 유추)')+'\n- 주관부서: '+(meta.department||'(녹취록에서 유추)')+'\n- 회의유형: '+meta.type+'\n- 참석자: '+(meta.attendees||'(녹취록에서 유추)')+'\n- 작성할 항목: '+activeSections.join(', ')+'\n\n회의 녹취록:\n'+transcript+'\n\nJSON만 반환해주세요.';
-
-  var t1 = setTimeout(function(){setProgress(35,[{label:'텍스트 분석',status:'done'},{label:'섹션 생성',status:'active'},{label:'검토',status:'pending'},{label:'완성',status:'pending'}]);},1000);
-  var t2 = setTimeout(function(){setProgress(65,[{label:'텍스트 분석',status:'done'},{label:'섹션 생성',status:'done'},{label:'검토',status:'active'},{label:'완성',status:'pending'}]);},3000);
-
-  function resetBtn(){ btn.disabled=false; btn.textContent='회의록 자동 생성'; }
-  function diagnoseError(err){
-    var msg = err.message||'';
-    if (msg.indexOf('Failed to fetch')>-1||msg.indexOf('NetworkError')>-1||msg.indexOf('fetch')>-1){
-      return '네트워크 연결 오류입니다. 아래 사항을 확인해주세요:\n'
-        +'① 인터넷 연결 상태 확인\n'
-        +'② 키 테스트 버튼으로 API 키 재확인\n'
-        +'③ 모델 자동 감지 후 다른 모델 선택\n'
-        +'④ 브라우저 보안 설정 또는 VPN 확인';
-    }
-    if (msg.indexOf('404')>-1) return '모델을 찾을 수 없습니다. 자동 감지 버튼으로 사용 가능한 모델을 불러온 후 다시 시도해주세요.';
-    if (msg.indexOf('429')>-1) return 'API 요청 한도 초과입니다. 잠시 후 다시 시도해주세요.';
-    if (msg.indexOf('401')>-1||msg.indexOf('403')>-1) return 'API 키가 유효하지 않습니다. 키를 다시 확인해주세요.';
-    return '오류: '+msg;
-  }
-
-  try {
-    var controller = new AbortController();
-    var timeoutId = setTimeout(function(){ controller.abort(); }, 60000);
-
-    var model = document.getElementById('geminiModel').value;
-    var response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+model+':generateContent?key='+apiKey,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      signal: controller.signal,
-      body:JSON.stringify({
-        system_instruction:{parts:[{text:buildSystemPrompt()}]},
-        contents:[{role:'user',parts:[{text:userMessage}]}],
-        generationConfig:{temperature:0.3,maxOutputTokens:8192}
-      })
-    });
-    clearTimeout(timeoutId);
-    var data = await response.json();
-    if (!response.ok) throw new Error('Gemini API 오류 ('+response.status+'): '+(data.error&&data.error.message));
-    var raw = data.candidates&&data.candidates[0]&&data.candidates[0].content&&data.candidates[0].content.parts&&data.candidates[0].content.parts[0]&&data.candidates[0].content.parts[0].text||'';
-
-    clearTimeout(t1); clearTimeout(t2);
-    setProgress(90,[{label:'텍스트 분석',status:'done'},{label:'섹션 생성',status:'done'},{label:'검토',status:'done'},{label:'완성',status:'active'}]);
-    generatedJSON = parseGeminiJSON(raw);
-    if (!generatedJSON) {
-      // 자동 재시도 1회
-      console.warn('1차 파싱 실패, 재시도...');
-      var retryMsg = userMessage + '\n\n중요: 반드시 순수 JSON만 반환하세요. 설명이나 마크다운 없이 {로 시작해서 }로 끝나는 JSON만.';
-      var retryRes = await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+model+':generateContent?key='+apiKey,{
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          system_instruction:{parts:[{text:buildSystemPrompt()}]},
-          contents:[{role:'user',parts:[{text:retryMsg}]}],
-          generationConfig:{temperature:0.1,maxOutputTokens:8192}
-        })
-      });
-      var retryData = await retryRes.json();
-      var retryRaw = retryData.candidates&&retryData.candidates[0]&&retryData.candidates[0].content&&retryData.candidates[0].content.parts&&retryData.candidates[0].content.parts[0]&&retryData.candidates[0].content.parts[0].text||'';
-      generatedJSON = parseGeminiJSON(retryRaw);
-      if (!generatedJSON) throw new Error('JSON 파싱 실패. 더 짧은 녹취록으로 시도하거나 다른 모델을 선택해주세요.');
-    }
-
-    setProgress(100,[{label:'텍스트 분석',status:'done'},{label:'섹션 생성',status:'done'},{label:'검토',status:'done'},{label:'완성',status:'done'}]);
-    setTimeout(function(){
-      progressEl.style.display='none';
-      renderResult(generatedJSON);
-      btn.disabled=false; btn.textContent='회의록 재생성';
-    },400);
-  } catch(err) {
-    clearTimeout(t1); clearTimeout(t2);
-    progressEl.style.display='none';
-    var msg = (err.name==='AbortError') ? '요청 시간이 초과되었습니다 (60초). 네트워크 상태를 확인하거나 더 짧은 녹취록으로 시도해주세요.' : diagnoseError(err);
-    showError(msg);
-    resetBtn();
-  }
-}
-
-var ATT_COLORS = {moss:'#4A6741',sand:'#8B7355',slate:'#3D5A6B',red:'#9B3A2A',ink:'#5A5753'};
-
-function renderResult(d) {
-  var wrap = document.getElementById('resultWrap');
-  wrap.className = 'result-wrap show fadeIn';
-  var m = d.metadata||{};
-  var now = new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
-  var attHTML = '';
-  if (isSelected('attendees') && d.attendees && d.attendees.length) {
-    var ckeys = Object.keys(ATT_COLORS);
-    attHTML = d.attendees.map(function(a,i){
-      var ck = a.colorKey||ckeys[i%ckeys.length], c = ATT_COLORS[ck]||ATT_COLORS.ink;
-      var cl = {high:'(발언多)',medium:'',low:'(청취)'}[a.contribution]||'';
-      return '<span class="att-chip"><span class="att-dot" style="background:'+c+'"></span>'+a.name+(a.role?' · '+a.role:'')+(cl?' <span style="color:'+c+';font-size:10px;">'+cl+'</span>':'')+'</span>';
-    }).join('');
-  }
-  var html = '<div class="doc"><div class="doc-head">';
-  html += '<div class="doc-classification">CONFIDENTIAL — INTERNAL USE ONLY</div>';
-  html += '<div class="doc-title">'+(m.title||'회의록')+'</div>';
-  html += '<table class="doc-meta-table">';
-  html += '<tr><td>일시</td><td>'+(m.date||'—')+(m.duration?' &nbsp;(약 '+m.duration+'분)':'')+'</td></tr>';
-  html += '<tr><td>장소</td><td>'+(m.location||'—')+'</td></tr>';
-  html += '<tr><td>주관</td><td>'+(m.department||'—')+'</td></tr>';
-  html += '<tr><td>유형</td><td>'+(m.type||'—')+'</td></tr>';
-  if (attHTML) html += '<tr><td>참석자</td><td><div class="attendee-chips">'+attHTML+'</div></td></tr>';
-  html += '</table></div>';
-
-  var sn = 1;
-  function secNum() { var n = sn < 10 ? '0'+sn : ''+sn; sn++; return n; }
-
-  if (isSelected('summary') && d.executiveSummary) {
-    var ins = d.keyInsights&&d.keyInsights.length ? '<div class="insight-list">'+d.keyInsights.map(function(i){return '<div class="insight-item">'+i+'</div>';}).join('')+'</div>' : '';
-    html += '<div class="doc-sec"><div class="doc-sec-title"><span>'+secNum()+'</span> 핵심 요약</div><div class="summary-text">'+d.executiveSummary+'</div>'+ins+'</div>';
-  }
-  if (isSelected('agenda') && d.agenda && d.agenda.length) {
-    html += '<div class="doc-sec"><div class="doc-sec-title"><span>'+secNum()+'</span> 아젠다별 주요 내용</div><div class="agenda-list">';
-    d.agenda.forEach(function(a,i){ html += '<div class="agenda-item"><span class="agenda-num">0'+(i+1)+'</span><div class="agenda-content"><h4>'+a.title+'</h4><p>'+a.summary+'</p></div>'+(a.duration?'<span class="agenda-dur">'+a.duration+'min</span>':'')+'</div>'; });
-    html += '</div></div>';
-  }
-  if (isSelected('decisions') && d.decisions && d.decisions.length) {
-    html += '<div class="doc-sec"><div class="doc-sec-title"><span>'+secNum()+'</span> 주요 결정사항 ('+d.decisions.length+'건)</div><div class="decision-list">';
-    d.decisions.forEach(function(dec,i){ html += '<div class="decision-item"><span class="dec-icon">'+(i<9?'0':'')+(i+1)+'</span>'+dec+'</div>'; });
-    html += '</div></div>';
-  }
-  if (isSelected('todo') && d.actionItems && d.actionItems.length) {
-    var pL=function(p){return{high:'긴급',medium:'보통',low:'낮음'}[p]||p;}, pC=function(p){return{high:'pri-high',medium:'pri-med',low:'pri-low'}[p]||'pri-low';};
-    html += '<div class="doc-sec"><div class="doc-sec-title"><span>'+secNum()+'</span> TO-DO LIST ('+d.actionItems.length+'건)</div><div style="overflow-x:auto;"><table class="todo-table"><thead><tr><th style="width:4%"></th><th style="width:36%">실행 과제</th><th style="width:14%">담당자</th><th style="width:18%">완료 기한</th><th style="width:10%">우선순위</th><th>비고</th></tr></thead><tbody>';
-    d.actionItems.forEach(function(a){ html += '<tr><td><span class="todo-check"></span></td><td style="font-weight:500;">'+a.task+'</td><td><span class="owner-tag">'+(a.owner||'—')+'</span></td><td style="font-size:11px;font-family:var(--mono);color:var(--ink-2);">'+(a.deadline||'—')+'</td><td><span class="pri '+pC(a.priority)+'">'+pL(a.priority)+'</span></td><td style="color:var(--ink-3);font-size:11px;">'+(a.context||'')+'</td></tr>'; });
-    html += '</tbody></table></div></div>';
-  }
-  if (isSelected('risks') && d.risks && d.risks.length) {
-    html += '<div class="doc-sec"><div class="doc-sec-title"><span>'+secNum()+'</span> 리스크 및 이슈 ('+d.risks.length+'건)</div><div class="risk-list">';
-    d.risks.forEach(function(r,i){ html += '<div class="risk-item"><span class="risk-mark">'+(i<9?'0':'')+(i+1)+'</span>'+r+'</div>'; });
-    html += '</div></div>';
-  }
-  if (isSelected('context') && d.meetingContext) {
-    var mc = d.meetingContext;
-    html += '<div class="doc-sec"><div class="doc-sec-title"><span>'+secNum()+'</span> 배경 및 목적</div>';
-    html += '<div style="display:grid;gap:8px;">';
-    if (mc.background) html += '<div style="padding:10px 14px;background:var(--slate-bg);border-left:3px solid var(--slate);font-size:13px;color:var(--ink);line-height:1.7;"><span style="font-size:10px;letter-spacing:1px;color:var(--slate);text-transform:uppercase;display:block;margin-bottom:4px;">배경</span>'+mc.background+'</div>';
-    if (mc.objective) html += '<div style="padding:10px 14px;background:var(--moss-bg);border-left:3px solid var(--moss);font-size:13px;color:var(--ink);line-height:1.7;"><span style="font-size:10px;letter-spacing:1px;color:var(--moss);text-transform:uppercase;display:block;margin-bottom:4px;">목적</span>'+mc.objective+'</div>';
-    if (mc.expectedOutcome) html += '<div style="padding:10px 14px;background:var(--paper-2);border-left:3px solid var(--line-2);font-size:13px;color:var(--ink);line-height:1.7;"><span style="font-size:10px;letter-spacing:1px;color:var(--ink-3);text-transform:uppercase;display:block;margin-bottom:4px;">기대 결과</span>'+mc.expectedOutcome+'</div>';
-    html += '</div></div>';
-  }
-  if (isSelected('openissues') && d.openIssues && d.openIssues.length) {
-    html += '<div class="doc-sec"><div class="doc-sec-title"><span>'+secNum()+'</span> 미결정 사항 ('+d.openIssues.length+'건)</div><div style="display:flex;flex-direction:column;gap:8px;">';
-    d.openIssues.forEach(function(oi,i){
-      html += '<div style="padding:10px 14px;background:#FAFAF8;border:1px solid var(--line);border-left:3px solid var(--amber,#C8A830);">';
-      html += '<div style="font-size:13px;font-weight:500;color:var(--ink);margin-bottom:4px;">'+(i<9?'0':'')+(i+1)+'&nbsp;&nbsp;'+oi.issue+'</div>';
-      if (oi.reason) html += '<div style="font-size:12px;color:var(--ink-2);margin-bottom:2px;">미결 이유: '+oi.reason+'</div>';
-      if (oi.nextStep) html += '<div style="font-size:12px;color:var(--moss);">다음 단계: '+oi.nextStep+'</div>';
-      html += '</div>';
-    });
-    html += '</div></div>';
-  }
-  if (isSelected('keywords') && d.keywords && d.keywords.length) {
-    html += '<div class="doc-sec"><div class="doc-sec-title"><span>'+secNum()+'</span> 키워드 태그</div>';
-    html += '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
-    d.keywords.forEach(function(kw){
-      html += '<span style="padding:5px 14px;background:var(--ink);color:var(--paper);font-size:12px;letter-spacing:0.5px;">#'+kw+'</span>';
-    });
-    html += '</div></div>';
-  }
-  if (isSelected('followups') && d.followUps && d.followUps.length) {
-    html += '<div class="doc-sec"><div class="doc-sec-title"><span>'+secNum()+'</span> 추후 진행계획</div><div class="plan-list">';
-    d.followUps.forEach(function(f,i){ html += '<div class="plan-item"><span class="plan-num">'+(i<9?'0':'')+(i+1)+'.</span>'+f+'</div>'; });
-    html += '</div></div>';
-  }
-  if (isSelected('sentiment') && d.sentiment) {
-    var s = d.sentiment, oL={positive:'긍정적',neutral:'중립',negative:'부정적',mixed:'복합적'}[s.overall]||s.overall;
-    html += '<div class="doc-sec"><div class="doc-sec-title"><span>'+secNum()+'</span> 회의 분위기 분석</div><div class="sentiment-badge">'+oL+'</div><div class="meter-list">';
-    [{l:'합의 수준',v:s.consensus},{l:'참여도',v:s.engagement},{l:'긴급도',v:s.urgency}].forEach(function(it){
-      html += '<div class="meter-row"><span class="meter-label">'+it.l+'</span><div class="meter-track"><div class="meter-fill" style="width:'+(it.v||0)+'%"></div></div><span class="meter-val">'+(it.v||0)+'%</span></div>';
-    });
-    html += '</div>'+(s.comment?'<div class="sentiment-comment">'+s.comment+'</div>':'')+'</div>';
-  }
-  html += '<div class="doc-foot"><div class="doc-foot-left">작성일시: '+now+' &nbsp;\u00b7&nbsp; AI 자동 작성 (검토 후 사용)</div><div class="doc-foot-right"><button class="btn-doc" onclick="copyMinutes()">텍스트 복사</button><button class="btn-doc" onclick="window.print()">인쇄/PDF</button><button class="btn-doc primary" id="wordBtn" onclick="downloadWord()">&#8595; Word 다운로드</button><button class="btn-doc" id="notionBtn" onclick="saveToNotion()" style="background:var(--slate-bg);color:var(--slate);border-color:#C8D8E0;">&#8663; 노션에 저장</button></div></div>';
-  html += '</div>';
-  wrap.innerHTML = html;
-  wrap.scrollIntoView({behavior:'smooth',block:'start'});
-}
-
-/* ── Word 다운로드 (JSZip + OOXML) ── */
-function xmlEsc(s){
-  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function makeDocxXml(d, selKeys){
-  var now = new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
-  var m = d.metadata||{};
-  var W_NS = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
-           + ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"'
-           + ' xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"';
-  var parts = [];
-
-  // ── 헬퍼 ──
-  function rPr(opts){
-    var o = opts||{};
-    return '<w:rPr>'
-      +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/>'
-      +'<w:sz w:val="'+(o.sz||22)+'"/><w:szCs w:val="'+(o.sz||22)+'"/>'
-      +'<w:color w:val="'+(o.color||'2C2C2A')+'"/>'
-      +(o.bold?'<w:b/><w:bCs/>':'')
-      +(o.italic?'<w:i/><w:iCs/>':'')
-      +'</w:rPr>';
-  }
-  function run(text, opts){
-    return '<w:r>'+rPr(opts)+'<w:t xml:space="preserve">'+xmlEsc(text)+'</w:t></w:r>';
-  }
-  function para(runs, opts){
-    var o = opts||{};
-    var pr = '<w:pPr>'
-      +'<w:spacing w:before="'+(o.before||60)+'" w:after="'+(o.after||60)+'"/>'
-      +(o.indent?'<w:ind w:left="'+o.indent+'"/>':'')
-      +(o.shading?'<w:shd w:val="clear" w:color="auto" w:fill="'+o.shading+'"/>':'')
-      +(o.borderLeft?'<w:pBdr><w:left w:val="single" w:sz="6" w:space="8" w:color="'+o.borderLeft+'"/></w:pBdr>':'')
-      +(o.borderBottom?'<w:pBdr><w:bottom w:val="single" w:sz="'+o.borderBottomSz+'" w:space="'+(o.borderBottomSpace||2)+'" w:color="'+o.borderBottom+'"/></w:pBdr>':'')
-      +'</w:pPr>';
-    return '<w:p>'+pr+(Array.isArray(runs)?runs.join(''):runs)+'</w:p>';
-  }
-  function blank(){ return '<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr></w:p>'; }
-  function sectionHeading(label, num){
-    var n = (num<10?'0':'')+num;
-    return para(
-      run(n+'  '+label.toUpperCase(), {sz:18,color:'666666'}),
-      {before:280,after:100,borderBottom:'D8D4C8',borderBottomSz:1,borderBottomSpace:4}
-    );
-  }
-
-  // ── 문서 제목 영역 ──
-  parts.push(para(run('CONFIDENTIAL — INTERNAL USE ONLY',{sz:16,color:'AAAAAA'}),{before:0,after:100}));
-  parts.push(para(
-    run(m.title||'회의록',{sz:36,bold:true,color:'2C2C2A'}),
-    {before:0,after:200,borderBottom:'2C2C2A',borderBottomSz:8,borderBottomSpace:4}
-  ));
-  parts.push(blank());
-
-  // ── 기본정보 표 ──
-  var metaRows = [
-    ['일시', (m.date||'—')+(m.duration?' (약 '+m.duration+'분)':'')],
-    ['장소', m.location||'—'],
-    ['주관', m.department||'—'],
-    ['유형', m.type||'—']
-  ];
-  if (selKeys.attendees && d.attendees && d.attendees.length) {
-    metaRows.push(['참석자', d.attendees.map(function(a){return a.name+(a.role?' ('+a.role+')':'');}).join(', ')]);
-  }
-  var metaRowsXml = metaRows.map(function(row){
-    return '<w:tr>'
-      +'<w:tc><w:tcPr><w:tcW w:w="1400" w:type="dxa"/>'
-      +'<w:shd w:val="clear" w:color="auto" w:fill="F7F5F0"/>'
-      +'<w:tcMar><w:top w:w="60" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:left w:w="80" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tcMar>'
-      +'<w:tcBorders><w:top w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:left w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:bottom w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:right w:val="none" w:sz="0" w:space="0" w:color="auto"/></w:tcBorders>'
-      +'</w:tcPr>'
-      +'<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr>'
-      +run(row[0].toUpperCase(),{sz:18,color:'8A8780'})+'</w:p></w:tc>'
-      +'<w:tc><w:tcPr><w:tcW w:w="8746" w:type="dxa"/>'
-      +'<w:tcMar><w:top w:w="60" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:left w:w="80" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tcMar>'
-      +'<w:tcBorders><w:top w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:left w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:bottom w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:right w:val="none" w:sz="0" w:space="0" w:color="auto"/></w:tcBorders>'
-      +'</w:tcPr>'
-      +'<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr>'
-      +run(row[1],{sz:20,color:'2C2C2A'})+'</w:p></w:tc>'
-      +'</w:tr>';
-  }).join('');
-  parts.push('<w:tbl>'
-    +'<w:tblPr>'
-    +'<w:tblW w:w="10146" w:type="dxa"/>'
-    +'<w:tblBorders>'
-    +'<w:top w:val="none" w:sz="0" w:space="0" w:color="auto"/>'
-    +'<w:left w:val="none" w:sz="0" w:space="0" w:color="auto"/>'
-    +'<w:bottom w:val="none" w:sz="0" w:space="0" w:color="auto"/>'
-    +'<w:right w:val="none" w:sz="0" w:space="0" w:color="auto"/>'
-    +'<w:insideH w:val="none" w:sz="0" w:space="0" w:color="auto"/>'
-    +'<w:insideV w:val="none" w:sz="0" w:space="0" w:color="auto"/>'
-    +'</w:tblBorders>'
-    +'</w:tblPr>'
-    +'<w:tblGrid><w:gridCol w:w="1400"/><w:gridCol w:w="8746"/></w:tblGrid>'
-    +metaRowsXml
-    +'</w:tbl>');
-  parts.push(blank());
-
-  // ── 섹션 번호 ──
-  var sn = 1;
-
-  // ── 핵심 요약 ──
-  if (selKeys.summary && d.executiveSummary) {
-    parts.push(sectionHeading('핵심 요약', sn++));
-    parts.push(para(run(d.executiveSummary,{sz:22}),{before:80,after:80,indent:280,borderLeft:'2C2C2A'}));
-    if (d.keyInsights && d.keyInsights.length) {
-      d.keyInsights.forEach(function(ins){
-        parts.push(para(run('\u2192  '+ins,{sz:20,color:'5A5753'}),{before:40,after:40,shading:'EFECE5',indent:120}));
-      });
-    }
-    parts.push(blank());
-  }
-
-  // ── 아젠다 ──
-  if (selKeys.agenda && d.agenda && d.agenda.length) {
-    parts.push(sectionHeading('아젠다별 주요 내용', sn++));
-    d.agenda.forEach(function(a,i){
-      parts.push(para(
-        run('0'+(i+1)+'  ',{sz:18,color:'AAAAAA'})+run(a.title,{sz:22,bold:true})+(a.duration?run('  ('+a.duration+'min)',{sz:18,color:'AAAAAA'}):''),
-        {before:160,after:60}
-      ));
-      parts.push(para(run(a.summary,{sz:20,color:'5A5753'}),{before:0,after:80,indent:280}));
-    });
-    parts.push(blank());
-  }
-
-  // ── 결정사항 ──
-  if (selKeys.decisions && d.decisions && d.decisions.length) {
-    parts.push(sectionHeading('주요 결정사항 ('+d.decisions.length+'건)', sn++));
-    d.decisions.forEach(function(dec,i){
-      parts.push(para(
-        run((i<9?'0':'')+(i+1)+'  ',{sz:18,color:'C8B89A'})+run(dec,{sz:22}),
-        {before:60,after:60,shading:'F2EDE3',borderLeft:'C8A87A',indent:160}
-      ));
-    });
-    parts.push(blank());
-  }
-
-  // ── TO-DO LIST (하나의 테이블로 생성) ──
-  if (selKeys.todo && d.actionItems && d.actionItems.length) {
-    parts.push(sectionHeading('TO-DO LIST ('+d.actionItems.length+'건)', sn++));
-    var tdW = [280,3800,1400,1900,1000,1766];
-    var tdHdrs = ['','실행 과제','담당자','완료 기한','우선순위','비고'];
-    var pMap = {high:'긴급',medium:'보통',low:'낮음'};
-    var pColor = {high:'9B3A2A',medium:'8B7355',low:'4A6741'};
-
-    function noBorderCell(content, w, fillColor){
-      return '<w:tc><w:tcPr><w:tcW w:w="'+w+'" w:type="dxa"/>'
-        +(fillColor?'<w:shd w:val="clear" w:color="auto" w:fill="'+fillColor+'"/>':'')
-        +'<w:tcMar><w:top w:w="60" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:left w:w="80" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tcMar>'
-        +'<w:tcBorders>'
-        +'<w:top w:val="none" w:sz="0" w:space="0" w:color="auto"/>'
-        +'<w:left w:val="none" w:sz="0" w:space="0" w:color="auto"/>'
-        +'<w:bottom w:val="single" w:sz="1" w:space="0" w:color="D8D4C8"/>'
-        +'<w:right w:val="none" w:sz="0" w:space="0" w:color="auto"/>'
-        +'</w:tcBorders>'
-        +'</w:tcPr>'+content+'</w:tc>';
-    }
-    function cellP(runs){ return '<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr>'+(Array.isArray(runs)?runs.join(''):runs)+'</w:p>'; }
-
-    var headerRow = '<w:tr><w:trPr><w:tblHeader/></w:trPr>'
-      + tdHdrs.map(function(h,i){
-          return '<w:tc><w:tcPr><w:tcW w:w="'+tdW[i]+'" w:type="dxa"/>'
-            +'<w:shd w:val="clear" w:color="auto" w:fill="EFECE5"/>'
-            +'<w:tcMar><w:top w:w="60" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:left w:w="80" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tcMar>'
-            +'<w:tcBorders>'
-            +'<w:top w:val="none" w:sz="0" w:space="0" w:color="auto"/>'
-            +'<w:left w:val="none" w:sz="0" w:space="0" w:color="auto"/>'
-            +'<w:bottom w:val="single" w:sz="4" w:space="0" w:color="2C2C2A"/>'
-            +'<w:right w:val="none" w:sz="0" w:space="0" w:color="auto"/>'
-            +'</w:tcBorders>'
-            +'</w:tcPr>'+cellP(run(h,{sz:18,bold:true,color:'8A8780'}))+'</w:tc>';
-        }).join('')
-      +'</w:tr>';
-
-    var dataRows = d.actionItems.map(function(a){
-      var pr = pMap[a.priority]||a.priority||'—';
-      var pc = pColor[a.priority]||'8A8780';
-      return '<w:tr>'
-        + noBorderCell(cellP(run('\u25a1',{sz:20,color:'C8C3B5'})), tdW[0])
-        + noBorderCell(cellP(run(a.task||'',{sz:20,bold:true})), tdW[1])
-        + noBorderCell(cellP(run(a.owner||'—',{sz:19,color:'3D5A6B'})), tdW[2])
-        + noBorderCell(cellP(run(a.deadline||'—',{sz:18,color:'5A5753'})), tdW[3])
-        + noBorderCell(cellP(run(pr,{sz:18,color:pc})), tdW[4])
-        + noBorderCell(cellP(run(a.context||'',{sz:18,color:'8A8780'})), tdW[5])
-        +'</w:tr>';
-    }).join('');
-
-    parts.push('<w:tbl>'
-      +'<w:tblPr>'
-      +'<w:tblW w:w="10146" w:type="dxa"/>'
-      +'<w:tblBorders>'
-      +'<w:top w:val="none" w:sz="0" w:space="0" w:color="auto"/>'
-      +'<w:left w:val="none" w:sz="0" w:space="0" w:color="auto"/>'
-      +'<w:bottom w:val="none" w:sz="0" w:space="0" w:color="auto"/>'
-      +'<w:right w:val="none" w:sz="0" w:space="0" w:color="auto"/>'
-      +'<w:insideH w:val="none" w:sz="0" w:space="0" w:color="auto"/>'
-      +'<w:insideV w:val="none" w:sz="0" w:space="0" w:color="auto"/>'
-      +'</w:tblBorders>'
-      +'</w:tblPr>'
-      +'<w:tblGrid>'
-      +tdW.map(function(w){return '<w:gridCol w:w="'+w+'"/>';}).join('')
-      +'</w:tblGrid>'
-      +headerRow+dataRows
-      +'</w:tbl>');
-    parts.push(blank());
-  }
-
-  // ── 리스크 ──
-  if (selKeys.risks && d.risks && d.risks.length) {
-    parts.push(sectionHeading('리스크 및 이슈 ('+d.risks.length+'건)', sn++));
-    d.risks.forEach(function(r,i){
-      parts.push(para(
-        run((i<9?'0':'')+(i+1)+'  ',{sz:18,color:'E8C4BC'})+run(r,{sz:21}),
-        {before:60,after:60,shading:'F5EDE9',borderLeft:'C87060',indent:160}
-      ));
-    });
-    parts.push(blank());
-  }
-
-  // ── 추후 진행계획 ──
-  if (selKeys.followups && d.followUps && d.followUps.length) {
-    parts.push(sectionHeading('추후 진행계획', sn++));
-    d.followUps.forEach(function(f,i){
-      parts.push(para(
-        run((i<9?'0':'')+(i+1)+'.  ',{sz:18,color:'AAAAAA'})+run(f,{sz:22}),
-        {before:80,after:80}
-      ));
-    });
-    parts.push(blank());
-  }
-
-  // ── 회의 분위기 ──
-  if (selKeys.sentiment && d.sentiment) {
-    var sv = d.sentiment;
-    var oMap={positive:'긍정적',neutral:'중립',negative:'부정적',mixed:'복합적'};
-    parts.push(sectionHeading('회의 분위기 분석', sn++));
-    parts.push(para(run('전반적 분위기: ',{sz:20,color:'8A8780'})+run(oMap[sv.overall]||sv.overall,{sz:20,bold:true}),{before:80,after:80}));
-    parts.push(para(run('합의 수준: '+(sv.consensus||0)+'%',{sz:20}),{before:40,after:40}));
-    parts.push(para(run('참여도: '+(sv.engagement||0)+'%',{sz:20}),{before:40,after:40}));
-    parts.push(para(run('긴급도: '+(sv.urgency||0)+'%',{sz:20}),{before:40,after:40}));
-    if (sv.comment) parts.push(para(run('"'+sv.comment+'"',{sz:20,italic:true,color:'8A8780'}),{before:80,after:0,indent:280}));
-    parts.push(blank());
-  }
-
-  // ── 푸터 ──
-  parts.push(para(run('작성일시: '+now+' | AI 자동 작성 (검토 후 사용)',{sz:18,color:'AAAAAA'}),
-    {before:160,after:0,borderBottom:'D8D4C8',borderBottomSz:1,borderBottomSpace:4}));
-
-  // ── 최종 XML 조합 ──
-  // sectPr은 반드시 body의 마지막에
-  var bodyContent = parts.join('\n');
-  var sectPr = '<w:sectPr>'
-    +'<w:pgSz w:w="11906" w:h="16838"/>'
-    +'<w:pgMar w:top="1080" w:right="1080" w:bottom="1080" w:left="1080" w:header="720" w:footer="720" w:gutter="0"/>'
-    +'</w:sectPr>';
-
-  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-    +'<w:document '+W_NS+'>'
-    +'<w:body>'
-    +bodyContent
-    +sectPr
-    +'</w:body>'
-    +'</w:document>';
-}
-
-async function downloadWord() {
-  if (!generatedJSON) return;
-  var btn = document.getElementById('wordBtn');
-  if (typeof JSZip === 'undefined') {
-    btn.textContent = 'JSZip 로딩 실패 - 인터넷 연결 확인';
-    return;
-  }
-  btn.textContent = '생성 중...'; btn.disabled = true;
-  try {
-    var docXml = makeDocxXml(generatedJSON, selectedKeys);
-
-    var contentTypes = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-      +'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
-      +'<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
-      +'<Default Extension="xml" ContentType="application/xml"/>'
-      +'<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
-      +'</Types>';
-
-    var rootRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-      +'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-      +'<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>'
-      +'</Relationships>';
-
-    var wordRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-      +'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-      +'</Relationships>';
-
-    var zip = new JSZip();
-    zip.file('[Content_Types].xml', contentTypes);
-    zip.file('_rels/.rels', rootRels);
-    zip.file('word/document.xml', docXml);
-    zip.file('word/_rels/document.xml.rels', wordRels);
-
-    var blob = await zip.generateAsync({
-      type:'blob',
-      mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      compression:'DEFLATE'
-    });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    var title = (generatedJSON.metadata&&generatedJSON.metadata.title)||'회의록';
-    a.href = url;
-    a.download = title+'_'+new Date().toISOString().slice(0,10)+'.docx';
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    btn.innerHTML = '\u2713 다운로드 완료'; btn.disabled = false;
-    setTimeout(function(){ btn.innerHTML = '&#8595; Word 다운로드'; }, 2500);
-  } catch(err) {
-    btn.textContent = '오류: '+err.message; btn.disabled = false;
-    console.error(err);
-    setTimeout(function(){ btn.innerHTML = '&#8595; Word 다운로드'; }, 3000);
-  }
-}
-
-
-function saveNotionKey() {
-  var v = cleanKey(document.getElementById('notionKeyInput').value);
-  document.getElementById('notionKeyInput').value = v;
-  if (v) localStorage.setItem('minutesai_notionkey', v);
-  var el = document.getElementById('notionKeyStatus');
-  if (v && v.length > 10) { el.textContent = '✓ 키 형식 확인됨'; el.style.color='#4A6741'; }
-  else if (v) { el.textContent = '⚠ 키를 다시 확인해주세요'; el.style.color='#8B7355'; }
-  else { el.textContent = ''; }
-}
-function toggleNotionKeyVisibility() {
-  var inp = document.getElementById('notionKeyInput'), btn = document.getElementById('toggleNotionBtn');
-  var isHidden = inp.style.webkitTextSecurity === 'disc' || inp.style.webkitTextSecurity === '';
-  if (isHidden) {
-    inp.style.webkitTextSecurity = 'none';
-    inp.style.textSecurity = 'none';
-    btn.textContent = '숨기기';
-  } else {
-    inp.style.webkitTextSecurity = 'disc';
-    inp.style.textSecurity = 'disc';
-    btn.textContent = '보기';
-  }
-}
-function getNotionKey() { return cleanKey(document.getElementById('notionKeyInput').value); }
-async function testNotionKey() {
-  var key = getNotionKey(), diag = document.getElementById('notionKeyDiag'), btn = document.getElementById('testNotionBtn');
-  if (!key) { diag.style.display='block'; diag.textContent='노션 API 키를 먼저 입력해주세요.'; return; }
-  btn.textContent='테스트 중...'; btn.disabled=true;
-  diag.style.display='block'; diag.style.color='var(--ink-3)'; diag.textContent='노션 연결 중...';
-  try {
-    var res = await fetch('https://notion-proxy.skknjw.workers.dev/v1/users/me', {
-      headers:{'Authorization':'Bearer '+key,'Notion-Version':'2022-06-28'}
-    });
-    var data = await res.json();
-    if (res.ok) { diag.textContent='✓ 연결 성공! ('+( data.name||data.bot&&data.bot.owner&&data.bot.owner.user&&data.bot.owner.user.name||'연동됨')+')'; diag.style.color='#4A6741'; }
-    else { diag.textContent='✗ '+res.status+': '+(data.message||JSON.stringify(data)); diag.style.color='#9B3A2A'; }
-  } catch(e) { diag.textContent='✗ 오류: '+e.message; diag.style.color='#9B3A2A'; }
-  btn.textContent='연결 테스트'; btn.disabled=false;
-}
-
-async function saveToNotion() {
-  if (!generatedJSON) return;
-  var notionKey = getNotionKey();
-  if (!notionKey || notionKey.length < 10) {
-    alert('노션 API 키를 04번 설정 하단 Notion 연동 칸에 입력해주세요.\n\n발급: notion.so/my-integrations\n→ 새 통합 만들기 → 키 복사\n→ 회의록 데이터베이스에 통합 연결 필요');
-    return;
-  }
-  var btn = document.getElementById('notionBtn');
-  btn.textContent='저장 중...'; btn.disabled=true;
-  var d = generatedJSON, m = d.metadata||{};
-  var DATABASE_ID = getNotionDbId();
-
-  // 회의내용 요약 텍스트 조합
-  var contentParts = [];
-  if (d.executiveSummary) contentParts.push('【핵심 요약】\n'+d.executiveSummary);
-  if (d.decisions&&d.decisions.length) contentParts.push('【주요 결정사항】\n'+d.decisions.map(function(x,i){return(i+1)+'. '+x;}).join('\n'));
-  if (d.actionItems&&d.actionItems.length) contentParts.push('【TO-DO LIST】\n'+d.actionItems.map(function(a){return'□ ['+a.owner+'] '+a.task+' (기한: '+a.deadline+')';}).join('\n'));
-  if (d.followUps&&d.followUps.length) contentParts.push('【추후 진행계획】\n'+d.followUps.map(function(x,i){return(i+1)+'. '+x;}).join('\n'));
-  if (d.risks&&d.risks.length) contentParts.push('【리스크/이슈】\n'+d.risks.map(function(x,i){return(i+1)+'. '+x;}).join('\n'));
-  var fullContent = contentParts.join('\n\n');
-
-  // 회의 유형 매핑 (노션 DB의 select 옵션에 맞게)
-  var typeMap = {'정기회의':'주간 회의','주간회의':'주간 회의','임원회의':'임원회의','상품회의':'상품회의','S&OP':'S&OP','scm':'scm팀장회의'};
-  var rawType = (m.type||'').trim();
-  var notionType = typeMap[rawType] || null;
-
-  // 노션 페이지 생성 payload
-  var properties = {
-    'Name': { title: [{ text: { content: m.title||'회의록' } }] },
-    '회의내용': { rich_text: [{ text: { content: String(fullContent||'').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'').slice(0,1990) } }] }
-  };
-  if (notionType) {
-    properties['회의 유형'] = { select: { name: notionType } };
-  }
-
-  // 페이지 본문 블록 구성
-  var blocks = [];
-  function safe(t) { return String(t||'').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'').slice(0,1990); }
-  function heading3(text){ return {object:'block',type:'heading_3',heading_3:{rich_text:[{type:'text',text:{content:safe(text)}}]}}; }
-  function para(text){ return {object:'block',type:'paragraph',paragraph:{rich_text:[{type:'text',text:{content:safe(text)}}]}}; }
-  function divider(){ return {object:'block',type:'divider',divider:{}}; }
-  function callout(text, emoji){ return {object:'block',type:'callout',callout:{icon:{type:'emoji',emoji:emoji||'📌'},rich_text:[{type:'text',text:{content:safe(text)}}]}}; }
-  function bullet(text){ return {object:'block',type:'bulleted_list_item',bulleted_list_item:{rich_text:[{type:'text',text:{content:safe(text)}}]}}; }
-
-  // 기본 정보
-  blocks.push(callout(
-    '일시: '+(m.date||'—')+(m.duration?' (약 '+m.duration+'분)':'')+'\n주관: '+(m.department||'—')+'\n유형: '+(m.type||'—'),
-    '📋'
-  ));
-  blocks.push(divider());
-
-  if (isSelected('summary') && d.executiveSummary) {
-    blocks.push(heading3('핵심 요약'));
-    blocks.push(para(d.executiveSummary));
-    if (d.keyInsights&&d.keyInsights.length) d.keyInsights.forEach(function(i){ blocks.push(bullet('→ '+i)); });
-    blocks.push(divider());
-  }
-  if (isSelected('decisions') && d.decisions&&d.decisions.length) {
-    blocks.push(heading3('주요 결정사항'));
-    d.decisions.forEach(function(dec,i){ blocks.push(bullet((i+1)+'. '+dec)); });
-    blocks.push(divider());
-  }
-  if (isSelected('todo') && d.actionItems&&d.actionItems.length) {
-    blocks.push(heading3('TO-DO LIST'));
-    d.actionItems.forEach(function(a){ blocks.push(bullet('□ ['+a.owner+'] '+a.task+' — 기한: '+a.deadline+' / 우선순위: '+({high:'긴급',medium:'보통',low:'낮음'}[a.priority]||a.priority))); });
-    blocks.push(divider());
-  }
-  if (isSelected('risks') && d.risks&&d.risks.length) {
-    blocks.push(heading3('리스크 및 이슈'));
-    d.risks.forEach(function(r,i){ blocks.push(bullet((i+1)+'. '+r)); });
-    blocks.push(divider());
-  }
-  if (isSelected('followups') && d.followUps&&d.followUps.length) {
-    blocks.push(heading3('추후 진행계획'));
-    d.followUps.forEach(function(f,i){ blocks.push(bullet((i+1)+'. '+f)); });
-    blocks.push(divider());
-  }
-  if (isSelected('context') && d.meetingContext) {
-    var mc = d.meetingContext;
-    blocks.push(heading3('배경 및 목적'));
-    if (mc.background) blocks.push(para('배경: '+mc.background));
-    if (mc.objective) blocks.push(para('목적: '+mc.objective));
-    if (mc.expectedOutcome) blocks.push(para('기대 결과: '+mc.expectedOutcome));
-    blocks.push(divider());
-  }
-  if (isSelected('openissues') && d.openIssues&&d.openIssues.length) {
-    blocks.push(heading3('미결정 사항'));
-    d.openIssues.forEach(function(oi,i){ blocks.push(bullet((i+1)+'. '+oi.issue+(oi.nextStep?' → '+oi.nextStep:''))); });
-    blocks.push(divider());
-  }
-  if (isSelected('keywords') && d.keywords&&d.keywords.length) {
-    blocks.push(heading3('키워드 태그'));
-    blocks.push(para(d.keywords.map(function(k){return '#'+k;}).join('  ')));
-  }
-  if (isSelected('sentiment') && d.sentiment) {
-    var sv = d.sentiment, oM={positive:'긍정적',neutral:'중립',negative:'부정적',mixed:'복합적'};
-    blocks.push(heading3('회의 분위기'));
-    blocks.push(para('전반적 분위기: '+(oM[sv.overall]||sv.overall)+' | 합의 수준: '+(sv.consensus||0)+'% | 참여도: '+(sv.engagement||0)+'% | 긴급도: '+(sv.urgency||0)+'%'));
-    if (sv.comment) blocks.push(para('"'+sv.comment+'"'));
-  }
-
-  try {
-    var res = await fetch('https://notion-proxy.skknjw.workers.dev/v1/pages', {
-      method:'POST',
-      headers:{
-        'Authorization':'Bearer '+notionKey,
-        'Content-Type':'application/json',
-        'Notion-Version':'2022-06-28'
-      },
-      body: JSON.stringify({
-        parent:{database_id: DATABASE_ID},
-        properties: properties,
-        children: blocks.slice(0,100)
-      })
-    });
-    var result = await res.json();
-    if (res.ok) {
-      btn.textContent='✓ 노션 저장 완료!'; btn.disabled=false;
-      setTimeout(function(){ btn.innerHTML='&#8663; 노션에 저장'; }, 3000);
-      if (result.url) {
-        var link = document.createElement('a');
-        link.href = result.url; link.target='_blank';
-        link.textContent = '노션에서 열기 →';
-        link.style.cssText = 'display:block;margin-top:8px;font-size:11px;color:var(--slate);text-decoration:none;text-align:right;';
-        var footer = document.querySelector('.doc-foot-right');
-        if (footer && !document.getElementById('notionOpenLink')) {
-          link.id = 'notionOpenLink';
-          footer.appendChild(link);
-        }
-      }
-    } else {
-      var msg = result.message||result.code||JSON.stringify(result).slice(0,200);
-      if (res.status===401||res.status===403) msg='API 키를 확인하고, 노션 DB에 통합이 연결되었는지 확인해주세요.';
-      if (res.status===400) msg='데이터 형식 오류: '+msg;
-      console.error('Notion error:', result);
-      btn.textContent='\u2717 오류: '+msg.slice(0,60); btn.disabled=false;
-      setTimeout(function(){ btn.innerHTML='&#8663; 노션에 저장'; }, 4000);
-    }
-  } catch(e) {
-    btn.textContent='✗ '+e.message.slice(0,40); btn.disabled=false;
-    setTimeout(function(){ btn.innerHTML='&#8663; 노션에 저장'; }, 4000);
-  }
-}
-
-
-function copyMinutes() {
-  if (!generatedJSON) return;
-  var d = generatedJSON, t = '【회의록】\n';
-  if (d.metadata) { if(d.metadata.title) t+='■ 회의명: '+d.metadata.title+'\n'; if(d.metadata.date) t+='■ 일시: '+d.metadata.date+'\n'; if(d.metadata.department) t+='■ 주관: '+d.metadata.department+'\n'; }
-  t+='\n';
-  if (isSelected('summary')&&d.executiveSummary) t+='▶ 핵심 요약\n'+d.executiveSummary+'\n\n';
-  if (isSelected('decisions')&&d.decisions&&d.decisions.length) t+='▶ 주요 결정사항\n'+d.decisions.map(function(x,i){return(i+1)+'. '+x;}).join('\n')+'\n\n';
-  if (isSelected('todo')&&d.actionItems&&d.actionItems.length) t+='▶ TO-DO LIST\n'+d.actionItems.map(function(a){return '\u25a1 ['+a.owner+'] '+a.task+' (기한: '+a.deadline+')';}).join('\n')+'\n\n';
-  if (isSelected('followups')&&d.followUps&&d.followUps.length) t+='▶ 추후 진행계획\n'+d.followUps.map(function(x,i){return(i+1)+'. '+x;}).join('\n')+'\n';
-  navigator.clipboard.writeText(t).then(function(){alert('회의록이 클립보드에 복사되었습니다.');});
-}
-
-var zone = document.getElementById('uploadZone');
-zone.addEventListener('dragover',function(e){e.preventDefault();zone.classList.add('drag-over');});
-zone.addEventListener('dragleave',function(){zone.classList.remove('drag-over');});
-zone.addEventListener('drop',function(e){
-  e.preventDefault();zone.classList.remove('drag-over');
-  var file=e.dataTransfer.files[0];
-  if(file){var dt=new DataTransfer();dt.items.add(file);document.getElementById('fileInput').files=dt.files;handleFileUpload({target:{files:[file]}});}
-});
+// ── 음성 녹음 (Web Speech API) ──
+var recognition=null;var isRecording=false;
+function toggleRecording(){if(isRecording){stopRecording();}else{startRecording();}}
+function startRecording(){var SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){alert('Chrome 브라우저에서만 음성 녹음이 지원됩니다.');return;}recognition=new SR();recognition.lang='ko-KR';recognition.continuous=true;recognition.interimResults=true;recognition.onresult=function(e){var interim='',final='';for(var i=e.resultIndex;i<e.results.length;i++){if(e.results[i].isFinal)final+=e.results[i][0].transcript+' ';else interim+=e.results[i][0].transcript;}var ta=document.getElementById('transcriptText');if(final){ta.value+=final;updateCharCount();}var el=document.getElementById('recordInterim');el.style.display=interim?'block':'none';el.textContent=interim;};recognition.onerror=function(e){stopRecording();if(e.error==='not-allowed')alert('마이크 권한을 허용해주세요.\n브라우저 주소창 옆 자물쇠 아이콘을 클릭하세요.');};recognition.onend=function(){if(isRecording){try{recognition.start();}catch(err){}}};isRecording=true;recognition.start();setRecordUI(true);}
+function stopRecording(){isRecording=false;if(recognition){recognition.stop();recognition=null;}document.getElementById('recordInterim').style.display='none';setRecordUI(false);}
+function setRecordUI(on){var btn=document.getElementById('recordBtn');var status=document.getElementById('recordStatus');var dot=document.getElementById('recordDot');var btnText=document.getElementById('recordBtnText');if(on){btn.classList.add('recording');btnText.textContent='녹음 중지';dot.style.animation='blink 1s infinite';status.style.display='flex';}else{btn.classList.remove('recording');btnText.textContent='녹음 시작';dot.style.animation='';status.style.display='none';}}
 </script>
 </body>
 </html>
+
