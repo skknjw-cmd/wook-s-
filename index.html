@@ -167,6 +167,7 @@ textarea::placeholder{color:var(--ink-3);}
 .btn-record:hover{border-color:var(--ink);color:var(--ink);}
 .btn-record.recording{background:var(--red);color:white;border-color:var(--red);}
 .record-dot{width:8px;height:8px;border-radius:50%;background:currentColor;display:inline-block;flex-shrink:0;}
+.record-timer{font-family:var(--mono);font-size:12px;color:var(--red);font-weight:500;}
 </style>
 </head>
 <body>
@@ -195,9 +196,9 @@ textarea::placeholder{color:var(--ink-3);}
       </button>
       <div id="recordStatus" style="display:none;align-items:center;gap:8px;">
         <span style="font-size:12px;color:var(--red);font-weight:500;">녹음 중</span>
-        <span style="font-size:11px;color:var(--ink-3);">— 말씀하시면 실시간으로 변환됩니다</span>
+        <span class="record-timer" id="recordTimer">00:00</span>
+        <span style="font-size:11px;color:var(--ink-3);">— 중지 후 자동 변환됩니다</span>
       </div>
-      <span id="recordBrowserWarn" style="font-size:11px;color:var(--ink-3);display:none;">※ Chrome 브라우저에서만 지원됩니다</span>
     </div>
     <div id="recordInterim" class="record-interim"></div>
     <div class="divider-or">또는 직접 입력</div>
@@ -253,6 +254,18 @@ textarea::placeholder{color:var(--ink-3);}
           <option value="gemini-2.5-pro">gemini-2.5-pro</option>
         </select>
         <button class="btn-sm" onclick="detectModels()" id="detectBtn">자동 감지</button>
+      </div>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line);">
+        <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-3);margin-bottom:8px;font-weight:400;">OpenAI Whisper (음성 녹음 변환)</div>
+        <div class="api-row" style="margin-bottom:6px;">
+          <input type="text" id="openaiKeyInput" placeholder="sk-..." autocomplete="new-password" style="-webkit-text-security:disc;text-security:disc;" oninput="saveOpenAIKey()" onpaste="setTimeout(saveOpenAIKey,10)">
+          <button class="btn-sm" onclick="toggleOpenAIKeyVisibility()" id="toggleOpenAIBtn">보기</button>
+          <button class="btn-sm" onclick="clearOpenAIKey()" style="color:var(--red);border-color:var(--red-bg);">삭제</button>
+        </div>
+        <div style="font-size:11px;color:var(--ink-3);">
+          <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--slate);text-decoration:none;">platform.openai.com/api-keys</a>에서 발급
+          &nbsp;·&nbsp; <span id="openaiKeyStatus"></span>
+        </div>
       </div>
       <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line);">
         <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-3);margin-bottom:8px;font-weight:400;">Notion 연동 (선택사항)</div>
@@ -382,13 +395,102 @@ try{var res=await fetch('https://notion-proxy.skknjw.workers.dev/v1/pages',{meth
 function copyMinutes(){if(!generatedJSON)return;var d=generatedJSON,t='【회의록】\n';if(d.metadata){if(d.metadata.title)t+='■ 회의명: '+d.metadata.title+'\n';if(d.metadata.date)t+='■ 일시: '+d.metadata.date+'\n';if(d.metadata.department)t+='■ 주관: '+d.metadata.department+'\n';}t+='\n';if(isSelected('summary')&&d.executiveSummary)t+='▶ 핵심 요약\n'+d.executiveSummary+'\n\n';if(isSelected('decisions')&&d.decisions&&d.decisions.length)t+='▶ 주요 결정사항\n'+d.decisions.map(function(x,i){return(i+1)+'. '+x;}).join('\n')+'\n\n';if(isSelected('todo')&&d.actionItems&&d.actionItems.length)t+='▶ TO-DO LIST\n'+d.actionItems.map(function(a){return'\u25a1 ['+a.owner+'] '+a.task+' (기한: '+a.deadline+')';}).join('\n')+'\n\n';if(isSelected('followups')&&d.followUps&&d.followUps.length)t+='▶ 추후 진행계획\n'+d.followUps.map(function(x,i){return(i+1)+'. '+x;}).join('\n')+'\n';navigator.clipboard.writeText(t).then(function(){alert('회의록이 클립보드에 복사되었습니다.');});}
 var zone=document.getElementById('uploadZone');zone.addEventListener('dragover',function(e){e.preventDefault();zone.classList.add('drag-over');});zone.addEventListener('dragleave',function(){zone.classList.remove('drag-over');});zone.addEventListener('drop',function(e){e.preventDefault();zone.classList.remove('drag-over');var file=e.dataTransfer.files[0];if(file){var dt=new DataTransfer();dt.items.add(file);document.getElementById('fileInput').files=dt.files;handleFileUpload({target:{files:[file]}});}});
 
-// ── 음성 녹음 (Web Speech API) ──
-var recognition=null;var isRecording=false;
+// ── 음성 녹음 (OpenAI Whisper) ──
+var mediaRecorder=null;var audioChunks=[];var isRecording=false;var timerInterval=null;var recordSeconds=0;
+
+function saveOpenAIKey(){var v=cleanKey(document.getElementById('openaiKeyInput').value);document.getElementById('openaiKeyInput').value=v;if(v)localStorage.setItem('minutesai_openaikey',v);var el=document.getElementById('openaiKeyStatus');if(v&&v.startsWith('sk-')&&v.length>20){el.textContent='✓ 확인됨';el.style.color='#4A6741';}else if(v){el.textContent='⚠ sk-... 형식 확인';el.style.color='#8B7355';}else{el.textContent='';}}
+function toggleOpenAIKeyVisibility(){var inp=document.getElementById('openaiKeyInput'),btn=document.getElementById('toggleOpenAIBtn');var isHidden=inp.style.webkitTextSecurity==='disc'||inp.style.webkitTextSecurity==='';if(isHidden){inp.style.webkitTextSecurity='none';inp.style.textSecurity='none';btn.textContent='숨기기';}else{inp.style.webkitTextSecurity='disc';inp.style.textSecurity='disc';btn.textContent='보기';}}
+function clearOpenAIKey(){if(!confirm('저장된 OpenAI API 키를 삭제할까요?'))return;localStorage.removeItem('minutesai_openaikey');var inp=document.getElementById('openaiKeyInput');inp.value='';inp.style.webkitTextSecurity='disc';var el=document.getElementById('openaiKeyStatus');if(el){el.textContent='키가 삭제되었습니다';el.style.color='#9B3A2A';setTimeout(function(){el.textContent='';},2000);}}
+function getOpenAIKey(){return cleanKey(document.getElementById('openaiKeyInput').value)||cleanKey(localStorage.getItem('minutesai_openaikey')||'');}
+
 function toggleRecording(){if(isRecording){stopRecording();}else{startRecording();}}
-function startRecording(){var SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){alert('Chrome 브라우저에서만 음성 녹음이 지원됩니다.');return;}recognition=new SR();recognition.lang='ko-KR';recognition.continuous=true;recognition.interimResults=true;recognition.onresult=function(e){var interim='',final='';for(var i=e.resultIndex;i<e.results.length;i++){if(e.results[i].isFinal)final+=e.results[i][0].transcript+' ';else interim+=e.results[i][0].transcript;}var ta=document.getElementById('transcriptText');if(final){ta.value+=final;updateCharCount();}var el=document.getElementById('recordInterim');el.style.display=interim?'block':'none';el.textContent=interim;};recognition.onerror=function(e){stopRecording();if(e.error==='not-allowed')alert('마이크 권한을 허용해주세요.\n브라우저 주소창 옆 자물쇠 아이콘을 클릭하세요.');};recognition.onend=function(){if(isRecording){try{recognition.start();}catch(err){}}};isRecording=true;recognition.start();setRecordUI(true);}
-function stopRecording(){isRecording=false;if(recognition){recognition.stop();recognition=null;}document.getElementById('recordInterim').style.display='none';setRecordUI(false);}
-function setRecordUI(on){var btn=document.getElementById('recordBtn');var status=document.getElementById('recordStatus');var dot=document.getElementById('recordDot');var btnText=document.getElementById('recordBtnText');if(on){btn.classList.add('recording');btnText.textContent='녹음 중지';dot.style.animation='blink 1s infinite';status.style.display='flex';}else{btn.classList.remove('recording');btnText.textContent='녹음 시작';dot.style.animation='';status.style.display='none';}}
+
+function startRecording(){
+  var key=getOpenAIKey();
+  if(!key||!key.startsWith('sk-')){alert('04번 설정에서 OpenAI API 키를 먼저 입력해주세요.');return;}
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){alert('이 브라우저는 녹음을 지원하지 않습니다. Chrome을 사용해주세요.');return;}
+  navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
+    audioChunks=[];
+    var options={mimeType:'audio/webm'};
+    if(!MediaRecorder.isTypeSupported('audio/webm')){options={mimeType:'audio/ogg'};}
+    mediaRecorder=new MediaRecorder(stream,options);
+    mediaRecorder.ondataavailable=function(e){if(e.data.size>0)audioChunks.push(e.data);};
+    mediaRecorder.onstop=function(){
+      var blob=new Blob(audioChunks,{type:mediaRecorder.mimeType});
+      stream.getTracks().forEach(function(t){t.stop();});
+      sendToWhisper(blob);
+    };
+    mediaRecorder.start(1000);
+    isRecording=true;
+    recordSeconds=0;
+    setRecordUI(true);
+    timerInterval=setInterval(function(){
+      recordSeconds++;
+      var m=Math.floor(recordSeconds/60),s=recordSeconds%60;
+      document.getElementById('recordTimer').textContent=(m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+    },1000);
+  }).catch(function(e){
+    if(e.name==='NotAllowedError')alert('마이크 권한을 허용해주세요.\n브라우저 주소창 옆 자물쇠 아이콘을 클릭하세요.');
+    else alert('마이크 오류: '+e.message);
+  });
+}
+
+function stopRecording(){
+  isRecording=false;
+  clearInterval(timerInterval);
+  if(mediaRecorder&&mediaRecorder.state!=='inactive'){mediaRecorder.stop();}
+  setRecordUI(false);
+}
+
+async function sendToWhisper(blob){
+  var key=getOpenAIKey();
+  var interim=document.getElementById('recordInterim');
+  interim.style.display='block';
+  interim.textContent='🔄 Whisper AI가 변환 중입니다...';
+  try{
+    var ext=blob.type.indexOf('ogg')>-1?'ogg':'webm';
+    var file=new File([blob],'recording.'+ext,{type:blob.type});
+    var form=new FormData();
+    form.append('file',file);
+    form.append('model','whisper-1');
+    form.append('language','ko');
+    var res=await fetch('https://api.openai.com/v1/audio/transcriptions',{
+      method:'POST',
+      headers:{'Authorization':'Bearer '+key},
+      body:form
+    });
+    var data=await res.json();
+    if(!res.ok)throw new Error(data.error&&data.error.message||res.status);
+    var text=data.text||'';
+    var ta=document.getElementById('transcriptText');
+    ta.value+=(ta.value?'\n':'')+text;
+    updateCharCount();
+    interim.style.display='none';
+  }catch(e){
+    interim.textContent='❌ 변환 실패: '+e.message;
+    setTimeout(function(){interim.style.display='none';},4000);
+  }
+}
+
+function setRecordUI(on){
+  var btn=document.getElementById('recordBtn');
+  var status=document.getElementById('recordStatus');
+  var dot=document.getElementById('recordDot');
+  var btnText=document.getElementById('recordBtnText');
+  if(on){btn.classList.add('recording');btnText.textContent='녹음 중지';dot.style.animation='blink 1s infinite';status.style.display='flex';}
+  else{btn.classList.remove('recording');btnText.textContent='녹음 시작';dot.style.animation='';status.style.display='none';}
+}
+
+// OpenAI 키 로드
+window.addEventListener('load',function(){
+  setTimeout(function(){
+    var ok=cleanKey(localStorage.getItem('minutesai_openaikey')||'');
+    var inp=document.getElementById('openaiKeyInput');
+    if(ok&&inp){inp.value=ok;saveOpenAIKey();}
+  },150);
+});
 </script>
 </body>
 </html>
+
 
