@@ -256,15 +256,27 @@ textarea::placeholder{color:var(--ink-3);}
         <button class="btn-sm" onclick="detectModels()" id="detectBtn">자동 감지</button>
       </div>
       <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line);">
-        <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-3);margin-bottom:8px;font-weight:400;">OpenAI Whisper (음성 녹음 변환)</div>
+        <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-3);margin-bottom:8px;font-weight:400;">CLOVA Speech (음성 녹음 변환 + 화자 분리)</div>
+        <div style="font-size:11px;color:var(--ink-3);margin-bottom:4px;">Invoke URL</div>
         <div class="api-row" style="margin-bottom:6px;">
-          <input type="text" id="openaiKeyInput" placeholder="sk-..." autocomplete="new-password" style="-webkit-text-security:disc;text-security:disc;" oninput="saveOpenAIKey()" onpaste="setTimeout(saveOpenAIKey,10)">
-          <button class="btn-sm" onclick="toggleOpenAIKeyVisibility()" id="toggleOpenAIBtn">보기</button>
-          <button class="btn-sm" onclick="clearOpenAIKey()" style="color:var(--red);border-color:var(--red-bg);">삭제</button>
+          <input type="text" id="clovaInvokeInput" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="new-password" oninput="saveClovaKeys()" onpaste="setTimeout(saveClovaKeys,10)">
         </div>
-        <div style="font-size:11px;color:var(--ink-3);">
-          <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--slate);text-decoration:none;">platform.openai.com/api-keys</a>에서 발급
-          &nbsp;·&nbsp; <span id="openaiKeyStatus"></span>
+        <div style="font-size:11px;color:var(--ink-3);margin-bottom:4px;">Secret Key</div>
+        <div class="api-row" style="margin-bottom:6px;">
+          <input type="text" id="clovaSecretInput" placeholder="Secret Key..." autocomplete="new-password" style="-webkit-text-security:disc;text-security:disc;" oninput="saveClovaKeys()" onpaste="setTimeout(saveClovaKeys,10)">
+          <button class="btn-sm" onclick="toggleClovaKeyVisibility()" id="toggleClovaBtn">보기</button>
+          <button class="btn-sm" onclick="clearClovaKeys()" style="color:var(--red);border-color:var(--red-bg);">삭제</button>
+        </div>
+        <div style="font-size:11px;color:var(--ink-3);margin-bottom:8px;">
+          <a href="https://www.ncloud.com/product/aiService/clovaSpeech" target="_blank" style="color:var(--slate);text-decoration:none;">NAVER Cloud Platform</a>에서 발급
+          &nbsp;·&nbsp; <span id="clovaKeyStatus"></span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:11px;color:var(--ink-3);">예상 화자 수:</span>
+          <input type="number" id="clovaSpeakerMin" value="2" min="1" max="10" style="width:50px;padding:4px 6px;border:1px solid var(--line);background:var(--paper);font-size:12px;font-family:var(--mono);color:var(--ink);">
+          <span style="font-size:11px;color:var(--ink-3);">~</span>
+          <input type="number" id="clovaSpeakerMax" value="5" min="1" max="10" style="width:50px;padding:4px 6px;border:1px solid var(--line);background:var(--paper);font-size:12px;font-family:var(--mono);color:var(--ink);">
+          <span style="font-size:11px;color:var(--ink-3);">명</span>
         </div>
       </div>
       <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line);">
@@ -395,19 +407,48 @@ try{var res=await fetch('https://notion-proxy.skknjw.workers.dev/v1/pages',{meth
 function copyMinutes(){if(!generatedJSON)return;var d=generatedJSON,t='【회의록】\n';if(d.metadata){if(d.metadata.title)t+='■ 회의명: '+d.metadata.title+'\n';if(d.metadata.date)t+='■ 일시: '+d.metadata.date+'\n';if(d.metadata.department)t+='■ 주관: '+d.metadata.department+'\n';}t+='\n';if(isSelected('summary')&&d.executiveSummary)t+='▶ 핵심 요약\n'+d.executiveSummary+'\n\n';if(isSelected('decisions')&&d.decisions&&d.decisions.length)t+='▶ 주요 결정사항\n'+d.decisions.map(function(x,i){return(i+1)+'. '+x;}).join('\n')+'\n\n';if(isSelected('todo')&&d.actionItems&&d.actionItems.length)t+='▶ TO-DO LIST\n'+d.actionItems.map(function(a){return'\u25a1 ['+a.owner+'] '+a.task+' (기한: '+a.deadline+')';}).join('\n')+'\n\n';if(isSelected('followups')&&d.followUps&&d.followUps.length)t+='▶ 추후 진행계획\n'+d.followUps.map(function(x,i){return(i+1)+'. '+x;}).join('\n')+'\n';navigator.clipboard.writeText(t).then(function(){alert('회의록이 클립보드에 복사되었습니다.');});}
 var zone=document.getElementById('uploadZone');zone.addEventListener('dragover',function(e){e.preventDefault();zone.classList.add('drag-over');});zone.addEventListener('dragleave',function(){zone.classList.remove('drag-over');});zone.addEventListener('drop',function(e){e.preventDefault();zone.classList.remove('drag-over');var file=e.dataTransfer.files[0];if(file){var dt=new DataTransfer();dt.items.add(file);document.getElementById('fileInput').files=dt.files;handleFileUpload({target:{files:[file]}});}});
 
-// ── 음성 녹음 (OpenAI Whisper) ──
+// ── 음성 녹음 (CLOVA Speech + 화자 분리) ──
 var mediaRecorder=null;var audioChunks=[];var isRecording=false;var timerInterval=null;var recordSeconds=0;
 
-function saveOpenAIKey(){var v=cleanKey(document.getElementById('openaiKeyInput').value);document.getElementById('openaiKeyInput').value=v;if(v)localStorage.setItem('minutesai_openaikey',v);var el=document.getElementById('openaiKeyStatus');if(v&&v.startsWith('sk-')&&v.length>20){el.textContent='✓ 확인됨';el.style.color='#4A6741';}else if(v){el.textContent='⚠ sk-... 형식 확인';el.style.color='#8B7355';}else{el.textContent='';}}
-function toggleOpenAIKeyVisibility(){var inp=document.getElementById('openaiKeyInput'),btn=document.getElementById('toggleOpenAIBtn');var isHidden=inp.style.webkitTextSecurity==='disc'||inp.style.webkitTextSecurity==='';if(isHidden){inp.style.webkitTextSecurity='none';inp.style.textSecurity='none';btn.textContent='숨기기';}else{inp.style.webkitTextSecurity='disc';inp.style.textSecurity='disc';btn.textContent='보기';}}
-function clearOpenAIKey(){if(!confirm('저장된 OpenAI API 키를 삭제할까요?'))return;localStorage.removeItem('minutesai_openaikey');var inp=document.getElementById('openaiKeyInput');inp.value='';inp.style.webkitTextSecurity='disc';var el=document.getElementById('openaiKeyStatus');if(el){el.textContent='키가 삭제되었습니다';el.style.color='#9B3A2A';setTimeout(function(){el.textContent='';},2000);}}
-function getOpenAIKey(){return cleanKey(document.getElementById('openaiKeyInput').value)||cleanKey(localStorage.getItem('minutesai_openaikey')||'');}
+function saveClovaKeys(){
+  var inv=cleanKey(document.getElementById('clovaInvokeInput').value);
+  var sec=cleanKey(document.getElementById('clovaSecretInput').value);
+  document.getElementById('clovaInvokeInput').value=inv;
+  document.getElementById('clovaSecretInput').value=sec;
+  if(inv)localStorage.setItem('minutesai_clova_invoke',inv);
+  if(sec)localStorage.setItem('minutesai_clova_secret',sec);
+  var el=document.getElementById('clovaKeyStatus');
+  if(inv&&sec){el.textContent='✓ 확인됨';el.style.color='#4A6741';}
+  else if(inv||sec){el.textContent='⚠ Invoke URL과 Secret Key 모두 입력해주세요';el.style.color='#8B7355';}
+  else{el.textContent='';}
+}
+function toggleClovaKeyVisibility(){
+  var inp=document.getElementById('clovaSecretInput'),btn=document.getElementById('toggleClovaBtn');
+  var isHidden=inp.style.webkitTextSecurity==='disc'||inp.style.webkitTextSecurity==='';
+  if(isHidden){inp.style.webkitTextSecurity='none';inp.style.textSecurity='none';btn.textContent='숨기기';}
+  else{inp.style.webkitTextSecurity='disc';inp.style.textSecurity='disc';btn.textContent='보기';}
+}
+function clearClovaKeys(){
+  if(!confirm('저장된 CLOVA Speech 키를 삭제할까요?'))return;
+  localStorage.removeItem('minutesai_clova_invoke');
+  localStorage.removeItem('minutesai_clova_secret');
+  document.getElementById('clovaInvokeInput').value='';
+  document.getElementById('clovaSecretInput').value='';
+  var el=document.getElementById('clovaKeyStatus');
+  if(el){el.textContent='키가 삭제되었습니다';el.style.color='#9B3A2A';setTimeout(function(){el.textContent='';},2000);}
+}
+function getClovaKeys(){
+  return{
+    invoke:cleanKey(document.getElementById('clovaInvokeInput').value)||cleanKey(localStorage.getItem('minutesai_clova_invoke')||''),
+    secret:cleanKey(document.getElementById('clovaSecretInput').value)||cleanKey(localStorage.getItem('minutesai_clova_secret')||'')
+  };
+}
 
 function toggleRecording(){if(isRecording){stopRecording();}else{startRecording();}}
 
 function startRecording(){
-  var key=getOpenAIKey();
-  if(!key||!key.startsWith('sk-')){alert('04번 설정에서 OpenAI API 키를 먼저 입력해주세요.');return;}
+  var keys=getClovaKeys();
+  if(!keys.invoke||!keys.secret){alert('04번 설정에서 CLOVA Speech Invoke URL과 Secret Key를 먼저 입력해주세요.');return;}
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){alert('이 브라우저는 녹음을 지원하지 않습니다. Chrome을 사용해주세요.');return;}
   navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
     audioChunks=[];
@@ -418,7 +459,7 @@ function startRecording(){
     mediaRecorder.onstop=function(){
       var blob=new Blob(audioChunks,{type:mediaRecorder.mimeType});
       stream.getTracks().forEach(function(t){t.stop();});
-      sendToWhisper(blob);
+      sendToClova(blob);
     };
     mediaRecorder.start(1000);
     isRecording=true;
@@ -442,34 +483,60 @@ function stopRecording(){
   setRecordUI(false);
 }
 
-async function sendToWhisper(blob){
-  var key=getOpenAIKey();
+async function sendToClova(blob){
+  var keys=getClovaKeys();
   var interim=document.getElementById('recordInterim');
   interim.style.display='block';
-  interim.textContent='🔄 Whisper AI가 변환 중입니다...';
+  interim.textContent='🔄 CLOVA Speech 변환 중 (화자 분리 포함)...';
   try{
     var ext=blob.type.indexOf('ogg')>-1?'ogg':'webm';
     var file=new File([blob],'recording.'+ext,{type:blob.type});
+    var speakerMin=parseInt(document.getElementById('clovaSpeakerMin').value)||2;
+    var speakerMax=parseInt(document.getElementById('clovaSpeakerMax').value)||5;
+    var params=JSON.stringify({
+      language:'ko-KR',
+      completion:'sync',
+      diarization:{enable:true,speakerCountMin:speakerMin,speakerCountMax:speakerMax}
+    });
     var form=new FormData();
-    form.append('file',file);
-    form.append('model','whisper-1');
-    form.append('language','ko');
-    var res=await fetch('https://api.openai.com/v1/audio/transcriptions',{
+    form.append('media',file);
+    form.append('params',new Blob([params],{type:'application/json'}));
+    var proxyUrl='https://notion-proxy.skknjw.workers.dev/clova/'+keys.invoke+'/recognizer/upload';
+    var res=await fetch(proxyUrl,{
       method:'POST',
-      headers:{'Authorization':'Bearer '+key},
+      headers:{'X-CLOVASPEECH-API-GW-SERVICE-SECRET':keys.secret},
       body:form
     });
     var data=await res.json();
-    if(!res.ok)throw new Error(data.error&&data.error.message||res.status);
-    var text=data.text||'';
+    if(!res.ok)throw new Error(data.message||data.error||res.status);
+    var formatted=formatClovaResult(data);
     var ta=document.getElementById('transcriptText');
-    ta.value+=(ta.value?'\n':'')+text;
+    ta.value+=(ta.value?'\n\n':'')+formatted;
     updateCharCount();
     interim.style.display='none';
   }catch(e){
     interim.textContent='❌ 변환 실패: '+e.message;
-    setTimeout(function(){interim.style.display='none';},4000);
+    setTimeout(function(){interim.style.display='none';},5000);
   }
+}
+
+function formatClovaResult(data){
+  if(!data.segments||!data.segments.length)return data.text||'';
+  var lines=[];
+  var lastLabel=null;
+  var buffer='';
+  data.segments.forEach(function(seg){
+    var label=seg.speaker&&seg.speaker.label?'화자'+seg.speaker.label:'화자?';
+    if(label!==lastLabel){
+      if(lastLabel!==null&&buffer)lines.push('['+lastLabel+']: '+buffer.trim());
+      lastLabel=label;
+      buffer=seg.text||'';
+    }else{
+      buffer+=' '+(seg.text||'');
+    }
+  });
+  if(lastLabel!==null&&buffer)lines.push('['+lastLabel+']: '+buffer.trim());
+  return lines.join('\n');
 }
 
 function setRecordUI(on){
@@ -481,16 +548,21 @@ function setRecordUI(on){
   else{btn.classList.remove('recording');btnText.textContent='녹음 시작';dot.style.animation='';status.style.display='none';}
 }
 
-// OpenAI 키 로드
+// CLOVA 키 로드
 window.addEventListener('load',function(){
   setTimeout(function(){
-    var ok=cleanKey(localStorage.getItem('minutesai_openaikey')||'');
-    var inp=document.getElementById('openaiKeyInput');
-    if(ok&&inp){inp.value=ok;saveOpenAIKey();}
+    var inv=cleanKey(localStorage.getItem('minutesai_clova_invoke')||'');
+    var sec=cleanKey(localStorage.getItem('minutesai_clova_secret')||'');
+    var invInp=document.getElementById('clovaInvokeInput');
+    var secInp=document.getElementById('clovaSecretInput');
+    if(inv&&invInp){invInp.value=inv;}
+    if(sec&&secInp){secInp.value=sec;}
+    if(inv&&sec){saveClovaKeys();}
   },150);
 });
 </script>
 </body>
 </html>
+
 
 
