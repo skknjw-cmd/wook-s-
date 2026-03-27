@@ -487,33 +487,50 @@ async function sendToClova(blob){
   var keys=getClovaKeys();
   var interim=document.getElementById('recordInterim');
   interim.style.display='block';
-  interim.textContent='🔄 CLOVA Speech 변환 중 (화자 분리 포함)...';
+  interim.textContent='🔄 CLOVA Speech 업로드 중...';
   try{
-    var ext=blob.type.indexOf('ogg')>-1?'ogg':'webm';
-    var file=new File([blob],'recording.'+ext,{type:blob.type});
     var speakerMin=parseInt(document.getElementById('clovaSpeakerMin').value)||2;
     var speakerMax=parseInt(document.getElementById('clovaSpeakerMax').value)||5;
-    var params=JSON.stringify({
-      language:'ko-KR',
-      completion:'sync',
-      diarization:{enable:true,speakerCountMin:speakerMin,speakerCountMax:speakerMax}
-    });
-    var form=new FormData();
-    form.append('media',file);
-    form.append('params',new Blob([params],{type:'application/json'}));
-    var proxyUrl='https://notion-proxy.skknjw.workers.dev/clova/'+keys.invoke+'/recognizer/upload';
-    var res=await fetch(proxyUrl,{
+    // 1단계: 음성 파일 업로드 → 토큰 받기
+    var uploadRes=await fetch('https://notion-proxy.skknjw.workers.dev/clova-upload',{
       method:'POST',
-      headers:{'X-CLOVASPEECH-API-GW-SERVICE-SECRET':keys.secret},
-      body:form
+      headers:{
+        'X-CLOVASPEECH-INVOKE-URL':keys.invoke,
+        'X-CLOVASPEECH-SECRET':keys.secret,
+        'X-SPEAKER-MIN':String(speakerMin),
+        'X-SPEAKER-MAX':String(speakerMax),
+        'Content-Type':blob.type||'audio/webm'
+      },
+      body:blob
     });
-    var data=await res.json();
-    if(!res.ok)throw new Error(data.message||data.error||res.status);
-    var formatted=formatClovaResult(data);
-    var ta=document.getElementById('transcriptText');
-    ta.value+=(ta.value?'\n\n':'')+formatted;
-    updateCharCount();
-    interim.style.display='none';
+    var uploadData=await uploadRes.json();
+    if(!uploadRes.ok||uploadData.error)throw new Error(uploadData.error||uploadRes.status);
+    var token=uploadData.token;
+    interim.textContent='🔄 CLOVA Speech 분석 중 (화자 분리)... 잠시 기다려주세요';
+    // 2단계: 결과 폴링 (3초 간격, 최대 5분)
+    var maxTries=100;
+    for(var i=0;i<maxTries;i++){
+      await new Promise(function(r){setTimeout(r,3000);});
+      var pollRes=await fetch('https://notion-proxy.skknjw.workers.dev/clova-poll?token='+encodeURIComponent(token),{
+        headers:{
+          'X-CLOVASPEECH-INVOKE-URL':keys.invoke,
+          'X-CLOVASPEECH-SECRET':keys.secret
+        }
+      });
+      var pollData=await pollRes.json();
+      if(pollData.status==='COMPLETED'){
+        var formatted=formatClovaResult(pollData);
+        var ta=document.getElementById('transcriptText');
+        ta.value+=(ta.value?'\n\n':'')+formatted;
+        updateCharCount();
+        interim.style.display='none';
+        return;
+      }else if(pollData.status==='ERROR'||pollData.status==='FAILED'){
+        throw new Error('CLOVA 분석 실패: '+JSON.stringify(pollData));
+      }
+      interim.textContent='🔄 CLOVA Speech 분석 중... ('+((i+1)*3)+'초 경과)';
+    }
+    throw new Error('분석 시간 초과 (5분)');
   }catch(e){
     interim.textContent='❌ 변환 실패: '+e.message;
     setTimeout(function(){interim.style.display='none';},5000);
@@ -563,6 +580,7 @@ window.addEventListener('load',function(){
 </script>
 </body>
 </html>
+
 
 
 
