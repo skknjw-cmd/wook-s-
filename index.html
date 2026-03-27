@@ -491,17 +491,24 @@ async function sendToClova(blob){
   try{
     var speakerMin=parseInt(document.getElementById('clovaSpeakerMin').value)||2;
     var speakerMax=parseInt(document.getElementById('clovaSpeakerMax').value)||5;
+    var ext=blob.type.indexOf('ogg')>-1?'ogg':'webm';
+    var file=new File([blob],'recording.'+ext,{type:blob.type});
+    var params=JSON.stringify({
+      language:'ko-KR',
+      completion:'async',
+      diarization:{enable:true,speakerCountMin:speakerMin,speakerCountMax:speakerMax}
+    });
+    var form=new FormData();
+    form.append('media',file);
+    form.append('params',params);
     // 1단계: 음성 파일 업로드 → 토큰 받기
     var uploadRes=await fetch('https://notion-proxy.skknjw.workers.dev/clova-upload',{
       method:'POST',
       headers:{
         'X-CLOVASPEECH-INVOKE-URL':keys.invoke,
-        'X-CLOVASPEECH-SECRET':keys.secret,
-        'X-SPEAKER-MIN':String(speakerMin),
-        'X-SPEAKER-MAX':String(speakerMax),
-        'Content-Type':blob.type||'audio/webm'
+        'X-CLOVASPEECH-SECRET':keys.secret
       },
-      body:blob
+      body:form
     });
     var uploadData=await uploadRes.json();
     if(!uploadRes.ok||uploadData.error)throw new Error(uploadData.error||uploadRes.status);
@@ -580,6 +587,9 @@ window.addEventListener('load',function(){
 </script>
 </body>
 </html>
+
+
+
 
 
 
